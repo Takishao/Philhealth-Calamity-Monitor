@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "node backend/server.js",
-    "test": "npm run check:emoji && node --test backend/test/*.test.js && cd .. && node --test scripts/check-no-emoji.test.mjs",
+    "test": "npm run check:emoji && node --test --test-reporter=tap backend/test/*.test.js && cd .. && node --test --test-reporter=tap scripts/check-no-emoji.test.mjs",
     "seed": "node backend/seed.js",
     "check:emoji": "node ../scripts/check-no-emoji.mjs"
   },
