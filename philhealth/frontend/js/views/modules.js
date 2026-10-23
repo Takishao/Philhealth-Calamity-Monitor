@@ -11,7 +11,7 @@ export async function moduleView(route,user,reload){
  section.append(table(['Report','PDF','Excel','CSV'],names.map((n,i)=>[n,...['pdf','xlsx','csv'].map(f=>el('a',{href:`/api/reports.${f}?type=${i}&eventId=${encodeURIComponent(eventId)}`},f.toUpperCase()))])));return section;
  }
  if(route==='audit'){
- const d=await api('/audit?pageSize=100');section.append(el('p',{class:'notice'},icon(d.chainOk?'circle-check':'octagon-alert'),d.chainOk?'Hash chain verified':'Hash chain requires investigation'),el('a',{href:'/api/audit/evidence'},'Export complete audit evidence (JSON)'),table(['When','Actor','Action','Record','Reason'],d.rows.map(r=>[r.when,r.user,r.action,r.record,r.reason])),el('p',{},`Showing latest ${d.rows.length} of ${d.total}; evidence export contains all records.`));return section;
+ const d=await api('/audit?pageSize=100');section.append(el('p',{class:'notice'},icon(d.chainOk?'circle-check':'octagon-alert'),d.chainOk?'Hash chain verified':'Hash chain requires investigation'),el('a',{href:'/api/audit/evidence'},'Export complete audit evidence (JSON)'),table(['When','Actor','Action','Record','Reason'],d.rows.map(r=>[r.when,r.user,r.action,r.record,r.reason])),el('p',{},`Showing latest ${d.rows.length} of ${d.total}. Download the evidence export for all records.`));return section;
  }
  if(route==='exceptions'){
  const d=await scoped('/exceptions');section.append(el('p',{class:'intro'},'Late, returned, denied, duplicate, unusual and unmatched claims in one queue. Budget alerts link here for investigation.'));

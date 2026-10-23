@@ -1,6 +1,6 @@
 # Current design system
 
-Shared radii: button 12px; input and dropdown panel alias the button token; card 16px. Spacing tokens: 4/8/12/16/24/32px. All active stylesheet colors are tokens. Neutral Light/Dark surfaces replace the old green appearance. Brand colors remain sampled from the supplied logo: #FCD116 and #009246; primary uses #006B33 for contrast.
+Shared radii: button 12px. Input and dropdown panel alias the button token. Card 16px. Spacing tokens: 4/8/12/16/24/32px. All active stylesheet colors are tokens. Neutral Light/Dark surfaces replace the old green appearance. Brand colors remain sampled from the supplied logo: #FCD116 and #009246. Primary uses #006B33 for contrast.
 
 | Theme | Pair | Foreground | Background | Ratio | Minimum |
 |---|---|---|---|---|---|
@@ -31,10 +31,10 @@ Only local Lucide SVGs represent icons. Color always accompanies an icon and tex
 
 Chart styles are scoped to .trend-svg/.chart-line, never all SVGs. ResizeObserver recalculates presentation geometry only. The chart has a 280px height, 12px labels, zero-based amount axis, date ticks reduced on narrow screens, exact-value titles and a solid/dashed/dotted legend. Flat data is explicitly explained.
 
-Browser evidence: 35 page/theme records plus final three-mode modal checks; zero checked text-contrast failures. Actual mobile CSS width 443px equals document scrollWidth; chart 368.9x280px, all labels within viewport. Desktop/default header controls and pagination/action groups share center lines; all visible button radii are 12px. Focused checks are not a full accessibility certification.
+Browser evidence: 35 page/theme records plus final three-mode modal checks. Zero checked text-contrast failures. Actual mobile CSS width 443px equals document scrollWidth. Chart 368.9x280px, all labels within viewport. Desktop/default header controls and pagination/action groups share center lines. All visible button radii are 12px. Focused checks are not a full accessibility certification.
 
 ## Brand and dropdown refinement
 
-Shared brand.js uses the owner-supplied symbol unchanged, with live bold PhilHealth and smaller regular Your partner in health text. A measured SVG viewport removes only transparent display margins; the raster asset is not edited. Logo text colors use --logo-text and --logo-muted on --logo-surface. Dropdown rows use --dropdown-row-height:40px, --dropdown-highlight-width:1px and --dropdown-focus-width:2px, with 4px row gaps. Menus fit their longest label within viewport bounds to avoid unnecessary multi-line highlights.
+Shared brand.js uses the owner-supplied symbol unchanged, with live bold PhilHealth and smaller regular Your partner in health text. A measured SVG viewport removes only transparent display margins. The raster asset is not edited. Logo text colors use --logo-text and --logo-muted on --logo-surface. Dropdown rows use --dropdown-row-height:40px, --dropdown-highlight-width:1px and --dropdown-focus-width:2px, with 4px row gaps. Menus fit their longest label within viewport bounds to avoid unnecessary multi-line highlights.
 
-The brand wrapper is transparent with no white tile or padding. Name/tagline use theme-aware foregrounds: Light #123826 / #52606D on the white header (12.97:1 / 6.46:1); Dark #EFF3F7 / #C0CAD4 on #1D2630 (13.73:1 / 9.21:1). Tagline sits below the name with an 8px gap. Browser-verified in both themes.
+The brand wrapper is transparent with no white tile or padding. Name/tagline use theme-aware foregrounds: Light #123826 / #52606D on the white header (12.97:1 / 6.46:1). Dark #EFF3F7 / #C0CAD4 on #1D2630 (13.73:1 / 9.21:1). Tagline sits below the name with an 8px gap. Browser-verified in both themes.

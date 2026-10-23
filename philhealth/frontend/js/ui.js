@@ -22,7 +22,7 @@ export function toast(message, kind = 'info') {
 }
 
 export function themeControl() {
-  return el('label', { class: 'theme-control' }, 'Theme', el('select', { name:'theme', 'aria-label': 'Theme', onchange: e => window.philhealthTheme.setChoice(e.target.value) },
+  return el('label', { class: 'theme-control' }, el('select', { name:'theme', 'aria-label': 'Theme', onchange: e => window.philhealthTheme.setChoice(e.target.value) },
     ['automatic','light','dark'].map(value => el('option', { value, selected: window.philhealthTheme.choice === value ? '' : null }, value[0].toUpperCase() + value.slice(1)))));
 }
 window.addEventListener('phcm-theme-change', () => {
