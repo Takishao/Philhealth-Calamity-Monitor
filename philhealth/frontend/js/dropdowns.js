@@ -29,9 +29,13 @@ export function enhanceDropdowns(root = document) {
     function position() {
       if (!panel.matches(':popover-open') || !trigger.isConnected) return;
       const box = trigger.getBoundingClientRect(), gap = 8;
+      // Fit the longest label before wrapping, while respecting the viewport.
+      panel.style.width = 'max-content';
+      panel.style.minWidth = `${Math.min(Math.max(box.width, 180), window.innerWidth - gap * 2)}px`;
+      panel.style.maxWidth = `${window.innerWidth - gap * 2}px`;
+      scroll.style.maxHeight = 'none';
+      const width = panel.getBoundingClientRect().width;
       const height = Math.min(scroll.scrollHeight, 320, window.innerHeight - gap * 2 - 2);
-      const width = Math.min(Math.max(box.width, 180), window.innerWidth - gap * 2);
-      panel.style.width = `${width}px`;
       panel.style.left = `${Math.max(gap, Math.min(box.left, window.innerWidth - width - gap))}px`;
       panel.style.top = `${Math.max(gap, box.bottom + height + 2 + gap > window.innerHeight ? box.top - height - 2 - gap : box.bottom + gap)}px`;
       scroll.style.maxHeight = `${height}px`;

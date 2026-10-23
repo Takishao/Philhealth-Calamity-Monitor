@@ -32,3 +32,7 @@ Only local Lucide SVGs represent icons. Color always accompanies an icon and tex
 Chart styles are scoped to .trend-svg/.chart-line, never all SVGs. ResizeObserver recalculates presentation geometry only. The chart has a 280px height, 12px labels, zero-based amount axis, date ticks reduced on narrow screens, exact-value titles and a solid/dashed/dotted legend. Flat data is explicitly explained.
 
 Browser evidence: 35 page/theme records plus final three-mode modal checks; zero checked text-contrast failures. Actual mobile CSS width 443px equals document scrollWidth; chart 368.9x280px, all labels within viewport. Desktop/default header controls and pagination/action groups share center lines; all visible button radii are 12px. Focused checks are not a full accessibility certification.
+
+## Brand and dropdown refinement
+
+Shared brand.js uses the owner-supplied symbol unchanged, with live bold PhilHealth and smaller italic Your partner in health text. A measured SVG viewport removes only transparent display margins; the raster asset is not edited. Logo text colors use --logo-text and --logo-muted on --logo-surface. Dropdown rows use --dropdown-row-height:40px, --dropdown-highlight-width:1px and --dropdown-focus-width:2px, with 4px row gaps. Menus fit their longest label within viewport bounds to avoid unnecessary multi-line highlights.

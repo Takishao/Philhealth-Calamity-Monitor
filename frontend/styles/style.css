@@ -3,3 +3,5 @@
 
 /* Shared replacement logo: preserve the supplied wordmark proportions. */
 .brand img{width:165px;height:auto;object-fit:contain;border-radius:0}.login .card img{width:220px;height:auto;object-fit:contain}
+
+.brand{display:inline-flex;align-items:center;gap:12px;padding:8px 12px;background:#fff;color:#123826;text-decoration:none}.brand-symbol{display:block;width:40px;height:76px;flex:none}.brand-copy{display:flex;flex-direction:column;gap:4px}.brand .brand-name{font-size:30px;line-height:1.1;font-weight:800;letter-spacing:-1px;color:#123826}.brand-tagline{font-size:12px;line-height:1.4;font-style:italic;color:#3f5449;white-space:nowrap}

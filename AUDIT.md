@@ -92,3 +92,13 @@ Intentionally unchanged: financial computations, claims/payment data and permiss
 Copied the supplied 1920x703 transparent PNG byte-for-byte to philhealth/frontend/assets/philhealth-logo.png and the legacy assets folder. Shared header and login now use this asset, so all role-aware tabs receive it. Updated intrinsic dimensions and preserved aspect ratio with height:auto; the existing white logo surface makes black wordmark text readable in both themes. Kept previous asset and matching favicon mark intact. No business, theme or data logic changed.
 
 Verification: all eight Finance tabs loaded the replacement at natural size 1920x703. Shared header rendered approximately 165x60.4px, preserving the supplied aspect ratio. PNG copies match the attachment SHA-256 exactly. No-emoji scan passes.
+
+## Revised symbol and typography - 2026-10-23
+
+Replaced the earlier wordmark with the newly supplied 900x900 symbol, copied unchanged. Shared brand.js pairs a proportion-preserving SVG viewport (measured transparent bounds) with bold PhilHealth and a smaller italic Your partner in health tagline. Consistent white brand surface and dark-green text support both themes. Shared header/login and legacy mock branding updated; no financial/data changes.
+
+## Dropdown highlight consistency - 2026-10-23
+
+Screenshot showed a fixed narrow menu wrapping event names, producing taller hover rows; selected border was 1px but keyboard focus inherited a 3px outline. Shared dropdown placement now uses max-content width capped to the viewport and at least the trigger width. Options share 40px minimum height, 8px/12px padding, 20px line height, 1px selection border, 2px inset focus and 4px separation. Text may wrap only when viewport-constrained. No selection/data logic changed.
+
+Browser verification: Event, Theme, New route, Provider, Route and modal Next status menus checked in Light and Dark (12 combinations). Every tested option row measured approximately 40px high; shared border/focus tokens are 1px/2px. Event names fit on one line at the tested viewport. All 23 automated tests and no-emoji check pass.

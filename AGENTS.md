@@ -97,7 +97,7 @@ Threshold settings: warning_pct=80, danger_pct=90, critical_pct=100, strictly in
 
 ## Design system and icons
 
-Current logo: `philhealth/frontend/assets/philhealth-logo.png`, owner-supplied 1920x703 RGBA, copied without modification on 2026-10-23. Shared header/login reference it on every maintained tab; legacy mock header/login also reference the same supplied asset. Preserve aspect ratio with height:auto and retain the white logo surface in both themes. The earlier 330x121 philhealth-seal.png is retained as an unused historical asset. Historical palette sampling of the earlier 330x121 asset found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
+Current branding: `philhealth/frontend/assets/philhealth-symbol.png`, owner-supplied 900x900 RGBA, copied without modification. Shared `js/brand.js` combines this symbol with live text: PhilHealth (bold) and Your partner in health (smaller italic). SVG viewBox 278 108 358 675 excludes transparent margins without editing or stretching the PNG; the opaque pixel bounds were measured as (284,114)-(630,777). Header symbol is 40x76px; login 46x87px. Keep the white brand surface and dark-green text readable in both themes. Previous wordmark assets are retained unused. Historical palette sampling of the earlier 330x121 asset found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
 
 Current control tokens: --radius-button 12px, --radius-input and --radius-panel alias it; --radius-card 16px. Spacing: --space-1/2/3/4/6/8 = 4/8/12/16/24/32px. Use these tokens for all controls and layout gaps; no hardcoded button radii.
 
@@ -122,6 +122,10 @@ Accessibility: color plus SVG icon plus visible status text; AA text contrast 4.
 - Do not reset or overwrite user data. Seed is additive; back up before reset.
 
 ## Current status
+
+Dropdown highlight follow-up (2026-10-23): menus size to their longest label within the viewport, preventing avoidable multi-line event names. Shared options use a 40px minimum row height, 1px selection border, 2px inset keyboard focus ring and 4px separation; long labels may still wrap on small screens rather than lose content. These values are shared CSS tokens.
+
+Corrected brand asset (2026-10-23): shared brand.js now uses the owner's revised symbol plus live PhilHealth / Your partner in health typography on every header and login. PNG preserved unchanged; transparent padding handled with measured SVG viewBox. Earlier wordmark assets retained but no longer displayed.
 
 Logo follow-up (2026-10-23): replaced shared header/login branding on every tab with the exact owner-supplied high-resolution PNG; transparent image preserved byte-for-byte, accurate intrinsic dimensions and height:auto. Existing theme colors and favicon mark remain unchanged.
 
