@@ -161,3 +161,5 @@ dialog>button,dialog>div>button { margin-top:var(--space-4); margin-right:var(--
 .condition-cell { display:grid; grid-template-columns:132px 7ch; align-items:center; gap:var(--space-3); width:max-content; }
 .condition-cell .chip { justify-self:start; }
 .condition-value { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+.scenario-results { margin-top:var(--space-6); }
