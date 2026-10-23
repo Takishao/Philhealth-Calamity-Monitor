@@ -1,4 +1,4 @@
-import { brand } from '../brand.js';
+import { brand } from '../brand.js?v=3d-20261023';
 import { api, setCsrfToken } from '../api.js';
 import { el, toast, themeControl } from '../ui.js';
 

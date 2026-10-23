@@ -227,6 +227,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
     const file = resolve(frontendDir, relative === '' ? 'index.html' : normalize(relative));
     if (!file.startsWith(frontendDir) || !existsSync(file)) return reply.code(404).send({ error: 'Not found.' });
     reply.type(staticTypes[extname(file)] || 'application/octet-stream');
+    reply.header('Cache-Control', 'no-cache');
     return reply.send(readFileSync(file));
   });
   return app;

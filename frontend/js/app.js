@@ -3,7 +3,7 @@ import { callApi } from '../../backend/data/mock-api.js';
 let session=sessionStorage.getItem('calamity-session')||'';
 let user=null;
 const app=document.querySelector('#app');
-const brandMarkup='<svg class="brand-symbol" viewBox="278 108 358 675" aria-hidden="true" focusable="false"><image href="assets/philhealth-symbol.png" width="900" height="900"></image></svg><span class="brand-copy"><strong class="brand-name">PhilHealth</strong><span class="brand-tagline">Your partner in health</span></span>';
+const brandMarkup='<svg class="brand-symbol" viewBox="278 108 358 675" aria-hidden="true" focusable="false"><image href="assets/philhealth-symbol-3d.png" width="900" height="900"></image></svg><span class="brand-copy"><strong class="brand-name">PhilHealth</strong><span class="brand-tagline">Your partner in health</span></span>';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cash=n=>`₱${Number(n).toLocaleString('en-PH',{maximumFractionDigits:0})}`;
 async function api(path,options={}) { return callApi(path, options, user); }

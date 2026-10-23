@@ -97,7 +97,7 @@ Threshold settings: warning_pct=80, danger_pct=90, critical_pct=100, strictly in
 
 ## Design system and icons
 
-Current branding: `philhealth/frontend/assets/philhealth-symbol.png`, owner-supplied 900x900 RGBA, copied without modification. Shared `js/brand.js` combines this symbol with live text: PhilHealth (bold) and Your partner in health (smaller italic). SVG viewBox 278 108 358 675 excludes transparent margins without editing or stretching the PNG; the opaque pixel bounds were measured as (284,114)-(630,777). Header symbol is 40x76px; login 46x87px. Keep the white brand surface and dark-green text readable in both themes. Previous wordmark assets are retained unused. Historical palette sampling of the earlier 330x121 asset found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
+Current branding: `philhealth/frontend/assets/philhealth-symbol-3d.png`, owner-supplied 900x900 RGBA, copied without modification. Shared `js/brand.js` combines this symbol with live text: PhilHealth (bold) and Your partner in health (smaller italic). SVG viewBox 278 108 358 675 excludes transparent margins without editing or stretching the PNG; the opaque pixel bounds were measured as (284,114)-(630,777). Header symbol is 52x98px; login 56x106px. Browser favicon/ICO/PNG/apple-touch exports now also use this exact 3D symbol, with versioned links. Frontend assets revalidate with Cache-Control:no-cache. Keep the white brand surface and dark-green text readable in both themes. Previous wordmark assets are retained unused. Historical palette sampling of the earlier 330x121 asset found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
 
 Current control tokens: --radius-button 12px, --radius-input and --radius-panel alias it; --radius-card 16px. Spacing: --space-1/2/3/4/6/8 = 4/8/12/16/24/32px. Use these tokens for all controls and layout gaps; no hardcoded button radii.
 
@@ -122,6 +122,8 @@ Accessibility: color plus SVG icon plus visible status text; AA text contrast 4.
 - Do not reset or overwrite user data. Seed is additive; back up before reset.
 
 ## Current status
+
+Logo completion (2026-10-23): corrected the missed browser-tab/apple-touch icons to the revised 3D mark, enlarged the shared symbol, and added versioned asset/module/style links plus static no-cache revalidation to prevent stale branding. Original supplied PNG retained unchanged.
 
 Dropdown highlight follow-up (2026-10-23): menus size to their longest label within the viewport, preventing avoidable multi-line event names. Shared options use a 40px minimum row height, 1px selection border, 2px inset keyboard focus ring and 4px separation; long labels may still wrap on small screens rather than lose content. These values are shared CSS tokens.
 

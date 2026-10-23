@@ -46,12 +46,12 @@ h2 { margin:var(--space-6) 0 var(--space-3); font-size:18px; line-height:1.35; }
 .shell { width:min(1440px,calc(100% - 32px)); margin:var(--space-4) auto; padding:var(--space-6) var(--space-8); min-height:calc(100vh - 32px); background:var(--canvas); border:1px solid var(--line); border-radius:var(--radius-card); box-shadow:var(--shadow); }
 .side { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-4); padding:var(--space-4); border-radius:var(--radius-card); background:var(--surface); border:1px solid var(--line); }
 .brand { display:inline-flex; flex:none; align-items:center; gap:var(--space-3); background:var(--logo-surface); color:var(--logo-text); padding:var(--space-2) var(--space-3); border-radius:var(--radius-panel); text-decoration:none; max-width:100%; }
-.brand-symbol { display:block; width:40px; height:76px; flex:none; }
+.brand-symbol { display:block; width:52px; height:98px; flex:none; }
 .brand-copy { display:flex; flex-direction:column; gap:var(--space-1); }
 .brand-name { font-size:30px; line-height:1.1; font-weight:800; letter-spacing:-1px; color:var(--logo-text); }
 .brand-tagline { font-size:12px; line-height:1.4; font-weight:500; font-style:italic; color:var(--logo-muted); white-space:nowrap; }
 .brand--login { margin-bottom:var(--space-4); }
-.brand--login .brand-symbol { width:46px; height:87px; }
+.brand--login .brand-symbol { width:56px; height:106px; }
 .brand--login .brand-name { font-size:34px; }
 .brand img { width:165px; height:auto; object-fit:contain; }
 .nav { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-1); padding:var(--space-1); margin-left:auto; border-radius:var(--radius-panel); background:var(--surface-raised); }

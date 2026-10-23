@@ -102,3 +102,7 @@ Replaced the earlier wordmark with the newly supplied 900x900 symbol, copied unc
 Screenshot showed a fixed narrow menu wrapping event names, producing taller hover rows; selected border was 1px but keyboard focus inherited a 3px outline. Shared dropdown placement now uses max-content width capped to the viewport and at least the trigger width. Options share 40px minimum height, 8px/12px padding, 20px line height, 1px selection border, 2px inset focus and 4px separation. Text may wrap only when viewport-constrained. No selection/data logic changed.
 
 Browser verification: Event, Theme, New route, Provider, Route and modal Next status menus checked in Light and Dark (12 combinations). Every tested option row measured approximately 40px high; shared border/focus tokens are 1px/2px. Event names fit on one line at the tested viewport. All 23 automated tests and no-emoji check pass.
+
+## Complete logo replacement and refresh - 2026-10-23
+
+Inspection confirmed the shared header already referenced the revised 3D symbol, but favicon/ICO/PNG/apple-touch assets still contained the previous mark. Re-exported every favicon from the exact supplied pixels, added versioned links and module/style references, and static no-cache revalidation. Increased the shared header/login symbol to make the supplied mark more prominent. Original PNG retained unchanged. No financial/data logic changes.
