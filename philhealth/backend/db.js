@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { seedAuditDemo } from './demo.js';
 import argon2 from 'argon2';
 
 const users = [
@@ -14,7 +16,7 @@ export async function createDatabase(filename = join(process.cwd(), 'backend', '
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)');
-  const dir = join(process.cwd(), 'backend', 'migrations');
+  const dir = fileURLToPath(new URL('./migrations', import.meta.url));
   for (const name of readdirSync(dir).filter(name => name.endsWith('.sql')).sort()) {
     if (!db.prepare('SELECT 1 FROM schema_migrations WHERE name = ?').get(name)) {
       db.exec(readFileSync(join(dir, name), 'utf8'));
@@ -22,6 +24,7 @@ export async function createDatabase(filename = join(process.cwd(), 'backend', '
     }
   }
   await seed(db, filename === ':memory:' || process.env.SEED_DEMO === '1');
+  if(filename === ':memory:' || process.env.SEED_DEMO === '1') seedAuditDemo(db);
   return db;
 }
 

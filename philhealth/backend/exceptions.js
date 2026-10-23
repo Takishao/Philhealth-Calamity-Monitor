@@ -1,3 +1,4 @@
+import { zScore } from './finance.js';
 const openStatuses = ['Submitted', 'Under Review', 'Returned (RTH)', 'Resubmitted'];
 
 function add(db, ref, type, reason) {
@@ -17,6 +18,7 @@ function percentile(sorted, value) {
 
 export function scanExceptions(db) {
   const settings = Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map(row => [row.key, row.key === 'as_of_date' ? row.value : Number(row.value)]));
+  db.prepare('DELETE FROM exceptions WHERE resolved_at IS NULL').run();
   const claims = db.prepare('SELECT * FROM claims').all();
   const amounts = claims.map(row => row.claimed_amount).sort((a, b) => a - b);
   const mean = amounts.reduce((sum, value) => sum + value, 0) / (amounts.length || 1);
@@ -38,9 +40,11 @@ export function scanExceptions(db) {
     }
     const duplicateKey = [claim.provider_id || '', claim.patient_token, claim.discharge_date || '', claim.claimed_amount].join('|');
     if ((duplicates.get(duplicateKey) || []).length > 1) add(db, claim.ref, 'Duplicate', 'Provider, token, discharge date, and amount match another claim.');
-    const z = sd ? Math.abs((claim.claimed_amount - mean) / sd) : 0;
-    if (z > settings.z_threshold || claim.claimed_amount < lower || claim.claimed_amount > upper) add(db, claim.ref, 'Outlier', 'Claimed amount is outside the population distribution.');
+    const eventAmounts=claims.filter(c=>c.event_id===claim.event_id).map(c=>c.claimed_amount).sort((a,b)=>a-b);
+    const z=Math.abs(zScore(claim.claimed_amount,eventAmounts));
+    const lq=percentile(eventAmounts,.25)||0,uq=percentile(eventAmounts,.75)||0;
+    if (z > settings.z_threshold || claim.claimed_amount < lq-1.5*(uq-lq) || claim.claimed_amount > uq+1.5*(uq-lq)) add(db, claim.ref, 'Outlier', 'Claimed amount is outside the population distribution.');
     const paid = db.prepare('SELECT COALESCE(SUM(amount), 0) AS amount FROM payments WHERE claim_ref = ?').get(claim.ref).amount;
-    if (['Paid', 'Reconciled'].includes(claim.status) && paid !== claim.approved_amount) add(db, claim.ref, 'Mismatch', 'Paid amount does not equal approved amount.');
+    if (['Approved','Paid', 'Reconciled'].includes(claim.status) && paid !== claim.approved_amount) add(db, claim.ref, 'Mismatch', 'Paid amount does not equal approved amount.');
   }
 }

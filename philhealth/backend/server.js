@@ -1,3 +1,5 @@
+import { snapshot } from './finance.js';
+import { registerModuleRoutes } from './modules.js';
 import Fastify from 'fastify';
 import argon2 from 'argon2';
 import { readFileSync, existsSync } from 'node:fs';
@@ -10,13 +12,11 @@ import { appendAudit, attachAuth, clearSessionCookie, issuePreAuthSession, isLoc
 import { canAccessClaim, transitionError } from './rules.js';
 import { registerWorkflowRoutes } from './workflow.js';
 import { scanExceptions } from './exceptions.js';
-import { dashboardMetrics, regression } from './metrics.js';
 import { registerEventRoutes } from './events.js';
 import { registerReportRoutes } from './reports.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const frontendDir = resolve(here, '../frontend');
-const money = value => `₱${Number(value).toLocaleString('en-PH')}`;
 const staticTypes = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.html': 'text/html; charset=utf-8' };
 
 function mustBeSignedIn(request, reply) {
@@ -33,13 +33,6 @@ function guarded(roles, action) {
 }
 
 function event(db) { return db.prepare('SELECT * FROM calamity_events ORDER BY id LIMIT 1').get(); }
-function regions(db, eventId) {
-  return db.prepare(`SELECT b.region, b.allocation, COALESCE(SUM(CASE WHEN c.status IN ('Approved', 'Paid', 'Reconciled') THEN c.approved_amount END), 0) AS approved,
-    COALESCE(SUM(CASE WHEN c.status IN ('Paid', 'Reconciled') THEN c.approved_amount END), 0) AS paid
-    FROM region_budgets b LEFT JOIN claims c ON c.event_id = b.event_id AND c.region = b.region
-    WHERE b.event_id = ? GROUP BY b.region, b.allocation ORDER BY b.region`).all(eventId)
-    .map(row => ({ ...row, level: row.approved > row.allocation ? 'CRITICAL' : row.approved / row.allocation >= .8 ? 'WARNING' : 'OK' }));
-}
 function claimRow(db, ref) {
   return db.prepare(`SELECT ref, event_id, region, patient_token AS token, claim_type AS type, status,
     claimed_amount AS claimed, approved_amount AS approved, created_at, provider_id, discharge_date,
@@ -61,7 +54,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   app.decorate('db', db);
   app.addContentTypeParser('text/csv', { parseAs: 'string' }, (request, body, done) => done(null, body));
   app.addHook('onSend', async (request, reply, payload) => {
-    reply.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    reply.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
@@ -81,6 +74,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   registerWorkflowRoutes(app, db);
   registerEventRoutes(app, db);
   registerReportRoutes(app, db);
+  registerModuleRoutes(app, db);
 
   app.get('/api/csrf', { preHandler: validate(schemas.csrf) }, async (request, reply) => {
     if (request.session) return { csrfToken: request.session.csrf_token };
@@ -116,26 +110,19 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   app.get('/api/dashboard', { preHandler: validate(schemas.dashboard) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if (request.user.role === 'ADM') return reply.code(403).send({ error: 'Your role is not allowed to perform this action.' });
-    const current = event(db); const regionRows = regions(db, current.id);
-    const totals = db.prepare(`SELECT COALESCE(SUM(CASE WHEN status IN ('Approved', 'Paid', 'Reconciled') THEN approved_amount END), 0) AS committed,
-      COALESCE(SUM(CASE WHEN status IN ('Paid', 'Reconciled') THEN approved_amount END), 0) AS paid,
-      COUNT(CASE WHEN status = 'Approved' THEN 1 END) AS unpaid FROM claims WHERE event_id = ?`).get(current.id);
-    const metrics = dashboardMetrics(db, current.id);
-    return { event: current, cards: [
-      { label: 'Utilization', value: `${((totals.committed / current.budget) * 100).toFixed(2)}%`, level: totals.committed > current.budget ? 'CRITICAL' : totals.committed / current.budget >= .8 ? 'WARNING' : 'OK' },
-      { label: 'Variance', value: money(current.budget - totals.committed), note: totals.committed > current.budget ? 'Over budget' : 'Under budget' },
-      { label: 'Committed vs budget', value: money(totals.committed), note: `of ${money(current.budget)} allocation` },
-      { label: 'Approved but unpaid', value: money(totals.committed - totals.paid), note: `${totals.unpaid} claims awaiting payment` }
-    ], regions: regionRows, ...metrics };
+    const id=request.query.eventId || event(db)?.id;
+    const data=snapshot(db,id,request.user);
+    if(!data)return reply.code(404).send({error:'Event not found.'});
+    return data;
   });
   app.get('/api/claims', { preHandler: validate(schemas.claims, 'query') }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if (request.user.role === 'ADM') return reply.code(403).send({ error: 'Your role is not allowed to perform this action.' });
     const q = `%${request.validated.q || ''}%`;
-    const rows = db.prepare(`SELECT ref, region, patient_token AS token, claim_type AS type, status, claimed_amount AS claimed, approved_amount AS approved
+    const rows = db.prepare(`SELECT ref, event_id, provider_id, region, patient_token AS token, claim_type AS type, status, claimed_amount AS claimed, approved_amount AS approved
       FROM claims WHERE (ref LIKE ? OR patient_token LIKE ? OR region LIKE ? OR status LIKE ?)
-      ${request.user.role === 'ROS' ? 'AND region = ?' : ''} ORDER BY ref`).all(...[q, q, q, q, ...(request.user.role === 'ROS' ? [request.user.region] : [])]);
-    return rows;
+      ${['ROS','RVP'].includes(request.user.role) ? 'AND region = ?' : ''} ORDER BY ref`).all(...[q, q, q, q, ...(['ROS','RVP'].includes(request.user.role) ? [request.user.region] : [])]);
+    return request.query.eventId ? rows.filter(c=>c.event_id===request.query.eventId) : rows;
   });
   app.get('/api/claims/:ref', { preHandler: validate(schemas.claim, 'params') }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
@@ -148,6 +135,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.post('/api/claims/:ref/status', { preHandler: [validate(schemas.claimStatus, 'params+body'), requireCsrf] }, async (request, reply) => {
     if (!guarded(['CFB', 'ROS'])(request, reply)) return;
+    if(request.user.role==='ROS' && !['Under Review','Resubmitted'].includes(request.body?.status))return reply.code(403).send({error:'Regional encoders cannot approve or deny claims.'});
     const claim = claimRow(db, request.validated.ref);
     if (!claim || !canAccessClaim(request.user, claim)) return reply.code(404).send({ error: 'Claim not found.' });
     const { status, approved, note = '', reasonCode, overrideReason } = request.validated;
@@ -167,8 +155,11 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/exceptions', { preHandler: validate(schemas.exceptions) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
-    return db.prepare(`SELECT e.id, e.type, e.claim_ref AS claim, e.reason, e.resolved_at AS resolvedAt FROM exceptions e JOIN claims c ON c.ref = e.claim_ref
-      ${request.user.role === 'ROS' ? 'WHERE c.region = ?' : ''} ORDER BY e.id`).all(...(request.user.role === 'ROS' ? [request.user.region] : [])).map(row => ({ ...row, resolved: Boolean(row.resolvedAt) }));
+    if(request.user.role==='ADM')return reply.code(403).send({error:'Permission denied.'});
+    scanExceptions(db);
+    const data=snapshot(db,request.query.eventId||event(db)?.id,request.user);
+    if(!data)return reply.code(404).send({error:'Event not found.'});
+    return data.exceptions;
   });
   app.post('/api/exceptions/:id/resolve', { preHandler: [requireCsrf, validate(schemas.resolveException, 'params+body')] }, async (request, reply) => {
     if (!guarded(['CFB', 'ROS'])(request, reply)) return;
@@ -182,15 +173,14 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/analytics', { preHandler: validate(schemas.analytics) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
-    const current = event(db); const total = db.prepare("SELECT COALESCE(SUM(approved_amount), 0) AS amount FROM claims WHERE event_id = ? AND status IN ('Approved', 'Paid')").get(current.id).amount;
-    const trend = regression([4, 6, 8, 10, 12], 50);
-    return {
-      forecast: money(Math.round(total * 1.12)), scenario: '+12%', monteCarlo: money(Math.round(total * 1.09)),
-      allocation: `${regions(db, current.id).length} regions`, method: 'OLS linear regression, 3-week moving average, seeded Monte Carlo (333), and LP allocation with a 20% floor.',
-      assumptions: { seed: 333, minimumAllocationPct: 20, series: [4, 6, 8, 10, 12] },
-      regression: trend, lp: { fund: 10, demand: [6, 5, 4], weights: [1, 1.2, .8], allocation: [4.2, 5, .8] },
-      caption: `Projected total ${total > current.budget ? 'exceeds' : 'is within'} the event ceiling.`
-    };
+    if (!['CFB','EXE','AUD'].includes(request.user.role))return reply.code(403).send({error:'Permission denied.'});
+    const data=snapshot(db,request.query.eventId||event(db)?.id,request.user);
+    if(!data)return reply.code(404).send({error:'Event not found.'});
+    const change=Number(request.query.scenarioPct||0);
+    if(!Number.isFinite(change)||Math.abs(change)>100)return reply.code(400).send({error:'Scenario must be between -100 and 100.'});
+    const demand=data.regions.map(r=>({...r,demand:Math.max(0,r.approved-r.paid)}));
+    const sum=demand.reduce((s,r)=>s+r.demand,0), fund=Math.max(0,data.totals.remaining);
+    return {...data.forecast,scenarioPct:change,scenarioTotal:data.totals.committed+data.forecast.weekly*4*(1+change/100),allocation: demand.map(r=>({region:r.region,suggestion:sum?Math.floor(fund*r.demand/sum):0})),allocationMethod:'Proportional to approved-but-unpaid demand; advisory only.'};
   });
   app.get('/api/drill', { preHandler: validate(schemas.drill, 'query') }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
@@ -205,6 +195,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/audit', { preHandler: validate(schemas.audit) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
+    if(!['AUD','CFB'].includes(request.user.role))return reply.code(403).send({error:'Permission denied.'});
     const { page, pageSize } = request.validated;
     const total = db.prepare('SELECT COUNT(*) AS count FROM audit_log').get().count;
     const allRows = db.prepare('SELECT * FROM audit_log ORDER BY id').all();
@@ -220,13 +211,14 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/events', { preHandler: validate(schemas.events) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
-    const current = event(db); return { ...current, regions: regions(db, current.id) };
+    return db.prepare('SELECT e.*,d.starts_on,d.ends_on,d.circular_reference FROM calamity_events e LEFT JOIN event_details d ON d.event_id=e.id ORDER BY e.id').all();
   });
   app.get('/api/reports', { preHandler: validate(schemas.reports) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
-    const current = event(db); const total = db.prepare("SELECT COALESCE(SUM(approved_amount), 0) AS approved FROM claims WHERE event_id = ? AND status IN ('Approved', 'Paid')").get(current.id).approved;
-    const summary = db.prepare('SELECT status, COUNT(*) AS count, COALESCE(SUM(approved_amount), 0) AS approved FROM claims WHERE event_id = ? GROUP BY status').all(current.id);
-    return { title: 'Budget vs actual variance', budget: current.budget, approved: total, variance: current.budget - total, statusSummary: summary };
+    if(request.user.role==='ADM')return reply.code(403).send({error:'Permission denied.'});
+    const data=snapshot(db,request.query.eventId||event(db)?.id,request.user);
+    if(!data)return reply.code(404).send({error:'Event not found.'});
+    return data;
   });
   if (serveFrontend) app.get('/*', async (request, reply) => {
     if (request.hostname === '127.0.0.1') return reply.redirect(`http://localhost:${request.headers.host.split(':')[1] || 3000}${request.raw.url}`);
