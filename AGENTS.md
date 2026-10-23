@@ -180,3 +180,5 @@ Header and favicon follow-up (2026-10-23): removed visible Event and Theme label
 Transparent tab icon (2026-10-23): removed the white background from SVG, ICO and PNG browser icons. Increased the mark size by about 7 percent within the fixed browser icon area. Versioned asset links refresh cached icons. PNG corner alpha verified as zero.
 
 Condition column alignment (2026-10-23): event condition cells use a shared grid with a 132px badge track, a 7ch right-aligned percentage track and a 12px gap. Tabular numerals align percentages across rows. Existing status icons, colors and labels remain.
+
+Login copy cleanup (2026-10-23): removed the visible demo credentials hint below the login title at the owner's request. Demo login instructions remain in README. Authentication is unchanged.
