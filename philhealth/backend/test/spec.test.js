@@ -61,3 +61,11 @@ test('CSV quoted multiline notes parse and malformed input is rejected',async t=
  const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'ros_xi');
  const csv='ref,event_id,region,token,type,claimed,provider_id,filing_date,note\nQUOTED,SAMPLE,XI,PT-12345,Inpatient,10000,1,2026-08-01,"Line one\nLine two"';assert.equal((await post(app,h,'/api/claims/import',{csv})).json().accepted.length,1);assert.equal((await post(app,h,'/api/claims/import',{csv:'"unclosed'})).statusCode,400);
 });
+test('request amendments and provider creation preserve evidence and reject other creators',async t=>{
+ const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const ros=await login(app,'ros_xi'),cfb=await login(app);
+ const provider=await post(app,ros,'/api/providers',{name:'Illustrative New XI',region:'XI'});assert.equal(provider.statusCode,200);assert.equal((await post(app,ros,'/api/providers',{name:'Forbidden VII',region:'VII'})).statusCode,403);
+ const r=await post(app,ros,'/api/requests',{eventId:'SAMPLE',providerId:provider.json().id,route:'A',amount:100,note:'Illustrative'});const url=`/api/requests/${r.json().id}/amendments`;assert.equal((await post(app,cfb,url,{route:'B',amount:200,note:'Changed'})).statusCode,403);assert.equal((await post(app,ros,url,{route:'B',amount:200,note:'Changed'})).statusCode,200);assert.throws(()=>app.db.prepare('DELETE FROM request_amendments').run(),/immutable/);assert.equal((await app.inject({url:'/api/requests?eventId=SAMPLE',headers:cfb})).json()[0].amendments.length,1);
+});
+test('local icon sprite and logo favicons are served with correct types',async t=>{
+ const app=await buildApp({database:':memory:'});t.after(()=>app.close());for(const [asset,type]of [['icons.svg','image/svg+xml'],['favicon.svg','image/svg+xml'],['favicon.ico','image/x-icon'],['apple-touch-icon.png','image/png']]){const r=await app.inject('/assets/'+asset);assert.equal(r.statusCode,200);assert.match(r.headers['content-type'],new RegExp(type.replace('+','\\+')));assert.ok(r.rawPayload.length>100);}
+});

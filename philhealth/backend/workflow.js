@@ -21,7 +21,7 @@ function currentDate(db) {
 }
 
 function validDate(value, asOf) {
-  return !value || value <= asOf;
+  return !value || (Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value && value <= asOf);
 }
 
 function csvRows(text) {
@@ -46,7 +46,7 @@ export function registerWorkflowRoutes(app, db) {
     const entries=[];const refs=new Set();const fingerprints=new Set();
     for(let i=0;i<rows.length;i++) {
       const raw=Object.fromEntries(headers.map((h,j)=>[h,rows[i][j]||'']));
-      const parsed=schemas.createClaim.safeParse({ref:raw.ref,eventId:raw.event_id,region:raw.region,token:raw.token,type:raw.type,claimed:Number(raw.claimed),providerId:Number(raw.provider_id),filingDate:raw.filing_date,dischargeDate:raw.discharge_date||undefined});
+      const parsed=schemas.createClaim.safeParse({ref:raw.ref,eventId:raw.event_id,region:raw.region,token:raw.token,type:raw.type,claimed:Number(raw.claimed),providerId:Number(raw.provider_id),filingDate:raw.filing_date,dischargeDate:raw.discharge_date||undefined,note:raw.note||undefined});
       let error=!parsed.success?{field:parsed.error.issues[0].path.join('.'),error:parsed.error.issues[0].message}:claimError(db,parsed.data);
       const fingerprint=[raw.event_id,raw.provider_id,raw.token,raw.discharge_date,raw.claimed].join('|');
       if(!error&&(refs.has(raw.ref)||fingerprints.has(fingerprint)))error={field:'ref',error:'Duplicate row in this import.'};
@@ -56,7 +56,7 @@ export function registerWorkflowRoutes(app, db) {
     }
     if(request.body?.commit===true && !result.rejected.length)db.transaction(()=>{
       for(const d of entries){
-        db.prepare("INSERT INTO claims(ref,event_id,region,patient_token,claim_type,status,claimed_amount,provider_id,filing_date,discharge_date,encoded_by) VALUES(?,?,?,?,?,'Submitted',?,?,?,?,?)").run(d.ref,d.eventId,d.region,d.token,d.type,d.claimed,d.providerId,d.filingDate,d.dischargeDate||null,request.user.id);
+        db.prepare("INSERT INTO claims(ref,event_id,region,patient_token,claim_type,status,claimed_amount,provider_id,filing_date,discharge_date,encoded_by,note) VALUES(?,?,?,?,?,'Submitted',?,?,?,?,?,?)").run(d.ref,d.eventId,d.region,d.token,d.type,d.claimed,d.providerId,d.filingDate,d.dischargeDate||null,request.user.id,d.note||'');
         db.prepare("INSERT INTO claim_history(claim_ref,status,actor_id) VALUES(?,'Submitted',?)").run(d.ref,request.user.id);
         appendAudit(db,request.user.id,'CREATE','Claim',d.ref,'CSV claim imported',{},d);
       }

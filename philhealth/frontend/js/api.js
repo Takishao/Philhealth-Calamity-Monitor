@@ -8,7 +8,7 @@ export async function api(path, options = {}) {
   if (method !== 'GET') headers['X-CSRF-Token'] = csrfToken;
   const response = await fetch(`/api${path}`, { ...options, method, headers, credentials: 'same-origin' });
   const data = response.status === 204 ? null : await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
+  if (!response.ok) throw new Error((data.field?data.field+': ':'')+(data.error || 'The request could not be completed.'));
   if (data?.csrfToken) csrfToken = data.csrfToken;
   return data;
 }

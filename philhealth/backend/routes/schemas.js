@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const username = z.string().trim().min(1).max(64).regex(/^[a-z0-9_]+$/i);
-const money = z.number().int().nonnegative();
+const money = z.number().int().safe().nonnegative();
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
 const status = z.enum(['Submitted', 'Under Review', 'Approved', 'Returned (RTH)', 'Denied', 'Resubmitted', 'Paid', 'Reconciled']);
 export const schemas = {

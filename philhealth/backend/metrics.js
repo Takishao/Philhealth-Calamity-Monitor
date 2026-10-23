@@ -4,9 +4,9 @@ function days(start, end) {
   return Math.max(0, Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000));
 }
 
-export function dashboardMetrics(db, eventId) {
+export function dashboardMetrics(db, eventId,user) {
   const settings = Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map(row => [row.key, row.value]));
-  const claims = db.prepare('SELECT * FROM claims WHERE event_id = ?').all(eventId);
+  const claims = db.prepare('SELECT * FROM claims WHERE event_id = ?').all(eventId).filter(c=>!['ROS','RVP'].includes(user?.role)||c.region===user.region);
   const paid = claims.filter(claim => ['Paid', 'Reconciled'].includes(claim.status));
   const closed = claims.filter(claim => claim.decision_date);
   const asOf = settings.as_of_date;
@@ -16,7 +16,7 @@ export function dashboardMetrics(db, eventId) {
     aging[age <= 30 ? 0 : age <= 60 ? 1 : age <= 90 ? 2 : 3] += 1;
   }
   const statusCounts = Object.fromEntries(claims.reduce((map, claim) => map.set(claim.status, (map.get(claim.status) || 0) + 1), new Map()));
-  const exception = type => db.prepare('SELECT COUNT(*) AS count FROM exceptions WHERE type = ?').get(type).count;
+  const exception = type => db.prepare('SELECT claim_ref FROM exceptions WHERE type=?').all(type).filter(x=>claims.some(c=>c.ref===x.claim_ref)).length;
   const paymentTotal = paid.reduce((sum, claim) => sum + db.prepare('SELECT COALESCE(SUM(amount), 0) AS amount FROM payments WHERE claim_ref = ?').get(claim.ref).amount, 0);
   return {
     statusCounts,
@@ -35,6 +35,7 @@ export function dashboardMetrics(db, eventId) {
 
 export function regression(series, ceiling) {
   const n = series.length;
+  if(n<2){const nextWeek=series[0]||0;const projected=nextWeek*2;return {nextWeek,projected,overrun:Math.max(0,projected-ceiling)};}
   const xMean = (n - 1) / 2; const yMean = series.reduce((sum, value) => sum + value, 0) / n;
   const slope = series.reduce((sum, value, x) => sum + (x - xMean) * (value - yMean), 0) /
     series.reduce((sum, _, x) => sum + (x - xMean) ** 2, 0);

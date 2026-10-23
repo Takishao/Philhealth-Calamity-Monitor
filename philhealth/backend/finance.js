@@ -5,10 +5,10 @@ export function financials(B,A,P) {
  return {ceiling:B,committed:A,paid:P,remaining:B-A,utilization:ratio(A),paidUtilization:ratio(P),unpaid:A-P,variance:A-B,variancePct:ratio(A-B)};
 }
 export function signal(pct, settings, forecast=0, ceiling=Infinity) {
- if (pct >= Number(settings.critical_pct) || forecast > ceiling) return {level:'critical',icon:'⛔',label: forecast > ceiling || pct>=100 ? 'Over ceiling' : 'Critical'};
- if (pct >= Number(settings.danger_pct)) return {level:'danger',icon:'◆',label:'Danger'};
- if (pct >= Number(settings.warning_pct)) return {level:'warning',icon:'▲',label:'Warning'};
- return {level:'normal',icon:'✓',label:'Normal'};
+ if (pct >= Number(settings.critical_pct) || forecast > ceiling) return {level:'critical',icon:'octagon-alert',label: forecast > ceiling || pct>=100 ? 'Over ceiling' : 'Critical'};
+ if (pct >= Number(settings.danger_pct)) return {level:'danger',icon:'circle-alert',label:'Danger'};
+ if (pct >= Number(settings.warning_pct)) return {level:'warning',icon:'triangle-alert',label:'Warning'};
+ return {level:'normal',icon:'circle-check',label:'Normal'};
 }
 export function zScore(value, values) { const mean=values.reduce((a,b)=>a+b,0)/(values.length||1); const sd=Math.sqrt(values.reduce((a,b)=>a+(b-mean)**2,0)/(values.length||1)); return sd ? (value-mean)/sd : 0; }
 export function ageDays(date,asOf) { return Math.max(0,Math.floor((Date.parse(asOf)-Date.parse(date))/86400000)); }
@@ -31,11 +31,11 @@ export function snapshot(db,eventId,user) {
  const asOf=settings.as_of_date;
  const weeks=Array.from({length:8},(_,i)=>{ const end=new Date(asOf+'T00:00:00Z');end.setUTCDate(end.getUTCDate()-(7-i)*7); const start=new Date(end);start.setUTCDate(start.getUTCDate()-6);return {week:end.toISOString().slice(0,10),amount:claims.filter(c=>committedStatuses.includes(c.status)&& (c.decision_date||c.created_at.slice(0,10))>=start.toISOString().slice(0,10)&&(c.decision_date||c.created_at.slice(0,10))<=end.toISOString().slice(0,10)).reduce((s,c)=>s+c.approved_amount,0)}; });
  const weekly=movingAverage(weeks.map(w=>w.amount)); const projected=A+weekly*4;
- const breach=weekly>0 ? new Date(Date.parse(asOf+'T00:00:00Z')+Math.max(0,Math.ceil((ceiling-A)/weekly*7))*86400000).toISOString().slice(0,10) : null;
+ const breach=A>ceiling ? asOf : weekly>0 ? new Date(Date.parse(asOf+'T00:00:00Z')+Math.max(0,Math.ceil((ceiling-A)/weekly*7))*86400000).toISOString().slice(0,10) : null;
  const state=signal(totals.utilization,settings,projected,ceiling);
  const alerts=[];
  if(state.level!=='normal') alerts.push({...state,message:`${state.label}: utilization ${totals.utilization.toFixed(1)}%. Four-week projected commitment ₱${(projected/100).toLocaleString('en-PH',{minimumFractionDigits:2})}.`});
- for(const r of regionRows) if(r.approved>r.allocation) alerts.push({level:'critical',icon:'⛔',label:'Over allocation',message:`Region ${r.region} exceeds its allocation.`});
+ for(const r of regionRows) if(r.approved>r.allocation) alerts.push({level:'critical',icon:'octagon-alert',label:'Over allocation',message:`Region ${r.region} exceeds its allocation.`});
  const rank={critical:0,danger:1,warning:2,normal:3};alerts.sort((a,b)=>rank[a.level]-rank[b.level]);
  const exceptions=db.prepare('SELECT * FROM exceptions').all().filter(x=>refs.has(x.claim_ref));
  const queue=[...exceptions.map(x=>({...x,claim:x.claim_ref})),...claims.filter(c=>['Denied','Returned (RTH)'].includes(c.status)).map(c=>({claim:c.ref,type:c.status,reason:c.note,resolved_at:null}))];

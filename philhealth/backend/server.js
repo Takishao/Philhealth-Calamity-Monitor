@@ -1,3 +1,4 @@
+import { dashboardMetrics } from './metrics.js';
 import { snapshot } from './finance.js';
 import { registerModuleRoutes } from './modules.js';
 import Fastify from 'fastify';
@@ -17,7 +18,7 @@ import { registerReportRoutes } from './reports.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const frontendDir = resolve(here, '../frontend');
-const staticTypes = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.html': 'text/html; charset=utf-8' };
+const staticTypes = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.png': 'image/png', '.html': 'text/html; charset=utf-8' };
 
 function mustBeSignedIn(request, reply) {
   if (!request.user) { reply.code(401).send({ error: 'Authentication required.' }); return false; }
@@ -113,7 +114,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
     const id=request.query.eventId || event(db)?.id;
     const data=snapshot(db,id,request.user);
     if(!data)return reply.code(404).send({error:'Event not found.'});
-    return data;
+    return {...data,operational:dashboardMetrics(db,id,request.user)};
   });
   app.get('/api/claims', { preHandler: validate(schemas.claims, 'query') }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
@@ -211,7 +212,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/events', { preHandler: validate(schemas.events) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
-    return db.prepare('SELECT e.*,d.starts_on,d.ends_on,d.circular_reference FROM calamity_events e LEFT JOIN event_details d ON d.event_id=e.id ORDER BY e.id').all();
+    return db.prepare('SELECT e.*,d.starts_on,d.ends_on,d.circular_reference FROM calamity_events e LEFT JOIN event_details d ON d.event_id=e.id ORDER BY e.id').all().map(e=>{const d=snapshot(db,e.id,request.user);return {...e,totals:d.totals,signal:d.signal};});
   });
   app.get('/api/reports', { preHandler: validate(schemas.reports) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
