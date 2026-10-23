@@ -116,3 +116,5 @@ Verification: browser confirmed fully transparent brand wrapper and correct fore
 Header and favicon follow-up (2026-10-23): retained event and theme controls with accessible names while removing visible labels and account text. Removed login theme selector. Replaced small detailed favicon with a simplified two-figure mark in SVG, ICO and PNG. Reviewed project Markdown punctuation and removed prose semicolons and em dashes. No business logic changed.
 
 Transparent tab icon (2026-10-23): removed the white background from SVG, ICO and PNG browser icons. Increased the mark size by about 7 percent within the fixed browser icon area. Versioned asset links refresh cached icons. PNG corner alpha verified as zero.
+
+Condition column alignment (2026-10-23): event condition cells use a shared grid with a 132px badge track, a 7ch right-aligned percentage track and a 12px gap. Tabular numerals align percentages across rows. Existing status icons, colors and labels remain.
