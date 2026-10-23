@@ -10,7 +10,7 @@ cd ~/Desktop/Philhealth-Calamity-Monitor
 Open http://localhost:3000. The first start installs locked dependencies and seeds an illustrative local database. Demo login: `cfb` / `demo1234`. Other illustrative users: `act`, `exe`, `aud`, `adm`, `ros_iva`, `ros_vii`, `ros_xi`, `rvp_vii`; same password. Roles: Central Finance, accounting, executive approver, read-only auditor, administrator, regional staff and regional approver respectively.
 
 Manual install/run: `cd philhealth && npm ci && npm run seed && npm start`.
-Tests: `cd philhealth && npm test`. No build step: the server serves native JavaScript/CSS.
+Tests: `cd philhealth && npm test` (21 automated tests, including the no-emoji guard). No build step: the server serves native JavaScript/CSS.
 Stop with Control-C. Seed is additive; it does not reset your data. To reset demo data, stop the server, move `philhealth/backend/data/calamity.db` and its `-wal`/`-shm` companions to a backup folder, then run `./start.sh`. Never do this to a real database.
 Optional environment: `PORT=3000 HOST=127.0.0.1`; see `.env.example` (shell variables, no dotenv loader).
 

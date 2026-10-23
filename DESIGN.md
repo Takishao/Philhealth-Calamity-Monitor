@@ -21,3 +21,7 @@ Logo sampled from existing RGBA PNG, opaque saturated pixels counted: [((252, 20
 |Dark link|#ade9bd|#20372a|9.24:1|Text AA|
 
 Status always combines icon, text and color. Yellow is a brand accent, never a text foreground on white. Sample green is decorative; primary text/button shade preserves green hue and increases contrast. Logo aspect ratio 330:121 is preserved with height:auto. Chart has text description, dates and ceiling label. Light and dark themes retained.
+
+## Rendered verification
+
+Focused browser checks: 325px mobile (one KPI column), 640px tablet (two), 1200px desktop (four). At each measured width document scrollWidth equals viewport width. Native screenshots capture all four budget conditions. Light dashboard 89 text checks and dark critical dashboard 91 text checks returned zero contrast failures. Decorative SVG icons use aria-hidden with visible status labels. Brand logo and favicon are the only non-Lucide identity graphics.

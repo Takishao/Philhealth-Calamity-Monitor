@@ -14,7 +14,7 @@ const pages = [['events','Events & budgets',['CFB','EXE','AUD']],['requests','Pr
 
 
 async function render() {
-  const version=++renderVersion;root.setAttribute('aria-busy','true');
+  const version=++renderVersion;root.setAttribute('aria-busy','true');root.querySelector('.loading')?.remove();root.prepend(el('p',{class:'loading',role:'status'},'Loading workspace...'));
   try {
     if (!user) { const session = await api('/me'); user = session.user; setCsrfToken(session.csrfToken); }
     let route = location.hash.slice(1) || 'dashboard';
