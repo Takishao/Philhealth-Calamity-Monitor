@@ -35,4 +35,6 @@ Browser evidence: 35 page/theme records plus final three-mode modal checks; zero
 
 ## Brand and dropdown refinement
 
-Shared brand.js uses the owner-supplied symbol unchanged, with live bold PhilHealth and smaller italic Your partner in health text. A measured SVG viewport removes only transparent display margins; the raster asset is not edited. Logo text colors use --logo-text and --logo-muted on --logo-surface. Dropdown rows use --dropdown-row-height:40px, --dropdown-highlight-width:1px and --dropdown-focus-width:2px, with 4px row gaps. Menus fit their longest label within viewport bounds to avoid unnecessary multi-line highlights.
+Shared brand.js uses the owner-supplied symbol unchanged, with live bold PhilHealth and smaller regular Your partner in health text. A measured SVG viewport removes only transparent display margins; the raster asset is not edited. Logo text colors use --logo-text and --logo-muted on --logo-surface. Dropdown rows use --dropdown-row-height:40px, --dropdown-highlight-width:1px and --dropdown-focus-width:2px, with 4px row gaps. Menus fit their longest label within viewport bounds to avoid unnecessary multi-line highlights.
+
+The brand wrapper is transparent with no white tile or padding. Name/tagline use theme-aware foregrounds: Light #123826 / #52606D on the white header (12.97:1 / 6.46:1); Dark #EFF3F7 / #C0CAD4 on #1D2630 (13.73:1 / 9.21:1). Tagline sits below the name with an 8px gap. Browser-verified in both themes.

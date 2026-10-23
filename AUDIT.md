@@ -106,3 +106,9 @@ Browser verification: Event, Theme, New route, Provider, Route and modal Next st
 ## Complete logo replacement and refresh - 2026-10-23
 
 Inspection confirmed the shared header already referenced the revised 3D symbol, but favicon/ICO/PNG/apple-touch assets still contained the previous mark. Re-exported every favicon from the exact supplied pixels, added versioned links and module/style references, and static no-cache revalidation. Increased the shared header/login symbol to make the supplied mark more prominent. Original PNG retained unchanged. No financial/data logic changes.
+
+## Transparent theme-aware logo - 2026-10-23
+
+The latest attachment is PNG RGBA despite its .jpg extension; copied its pixels/file unchanged into the shared symbol asset. Removed the white brand panel, with symbol left and live PhilHealth / Your partner in health text right, tagline below with 8px spacing. Corrected logo tokens: near-white name and muted-light tagline in Dark, dark-green name and muted-dark tagline in Light. Header/login share the same component. No business/data changes.
+
+Verification: browser confirmed fully transparent brand wrapper and correct foreground changes in both themes. Name/tagline contrast: Light 12.97:1/6.46:1, Dark 13.73:1/9.21:1. Shared symbol alpha bounds unchanged, and all 23 tests plus no-emoji check pass.
