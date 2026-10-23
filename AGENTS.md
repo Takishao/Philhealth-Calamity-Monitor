@@ -25,7 +25,7 @@ npm run check:emoji
 npm audit
 ```
 
-Tests: 20 domain/API tests plus 1 isolated guard regression test (21 total). Test databases are in memory. No-emoji scan runs before all tests. Schema changes are sequential SQL migrations; do not modify applied migrations. Local database is ignored by Git.
+Tests: 22 domain/API/presentation tests plus 1 isolated guard regression test (23 total). Test databases are in memory. No-emoji scan runs before all tests. Schema changes are sequential SQL migrations; do not modify applied migrations. Local database is ignored by Git.
 
 Reset: stop server, move `philhealth/backend/data/calamity.db` and any `-wal`/`-shm` companions to a backup directory, then run `./start.sh`. Do not delete real data. Seed is additive and never resets existing records. Demo as-of date defaults to 2026-10-15, adjustable by `adm`. New activity after that date requires a deliberate as-of-date update for forecasting/aging.
 
@@ -45,7 +45,10 @@ Reset: stop server, move `philhealth/backend/data/calamity.db` and any `-wal`/`-
 - `philhealth/backend/reports.js`: M7 six reports, CSV/XLSX/PDF; all share snapshot totals.
 - `philhealth/backend/auth.js`, immutable SQL triggers: M8 sessions, CSRF, login lockout, hash-chain audit.
 - `philhealth/backend/metrics.js`: retained operational KPIs and guarded regression utility.
-- `philhealth/frontend/js/app.js`, `context.js`, `api.js`, `ui.js`: navigation, event selection, requests, accessible DOM/table/icon helpers.
+- `philhealth/frontend/js/app.js`, `context.js`, `api.js`, `ui.js`: navigation, event selection, requests, accessible DOM/table/icon helpers and shared modal actions.
+- `philhealth/frontend/js/theme.js`: blocking head script for Automatic/Light/Dark, localStorage persistence, live OS changes and cross-tab synchronization.
+- `philhealth/frontend/js/dropdowns.js`: shared rounded popover/listbox enhancement over native select values/events, keyboard navigation and dialog support.
+- `philhealth/frontend/js/chart.js`, `chart-math.js`: responsive SVG rendering and presentation-only geometry; financial calculations remain on the server.
 - `philhealth/frontend/js/views/*.js`: dashboard, claim workflow, settings and remaining module screens.
 - `philhealth/frontend/styles/style.css`, `assets/`: tokens, responsive layout, supplied logo, Lucide sprite, favicons.
 - `philhealth/backend/test/*.test.js`, `scripts/check-no-emoji*.mjs`: domain/API/security/export/icon and guard checks.
@@ -96,9 +99,13 @@ Threshold settings: warning_pct=80, danger_pct=90, critical_pct=100, strictly in
 
 Existing logo: `philhealth/frontend/assets/philhealth-seal.png`, 330x121 RGBA. Opaque saturated-pixel sampling found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
 
-Tokens: --primary #006B33 (darker sampled green), --secondary #FCD116, --accent #009246 (decorative), --surface #FFFFFF, --text #172A21, --border #718079, --primary-tint #E8F4ED, --primary-shade #004D25, --secondary-shade #604F08. Status tokens remain independent: --normal #166534 on #EDF8EF, --warning #854D0E on #FFF7DF, --danger #B91C1C on #FFF0F0, --critical #7F1D1D on #FFE9E9. Dark theme has explicit contrasting surfaces/text and retained theme control.
+Current control tokens: --radius-button 12px, --radius-input and --radius-panel alias it; --radius-card 16px. Spacing: --space-1/2/3/4/6/8 = 4/8/12/16/24/32px. Use these tokens for all controls and layout gaps; no hardcoded button radii.
 
-Only icon library: locally installed `lucide-static` 1.61.0, ISC license copied to assets. Local SVG sprite: icons.svg; circle-check, triangle-alert, circle-alert, octagon-alert. `ui.js` icon() and badge() helpers provide SVGs; decorative SVG gets aria-hidden=true and focusable=false; meaning is conveyed by adjacent visible label, or aria-label for standalone meaningful icons. No Unicode symbol stand-ins or CDNs. Favicons use the supplied logo mark: ICO, embedded-raster SVG, PNG sizes, apple-touch 180px. Maintain aspect ratio.
+Current colors: brand --primary #006B33, --secondary #FCD116, --accent #009246. Light surfaces are neutral --bg #EEF1F4, --canvas #F8FAFC, --surface #FFFFFF, --surface-raised #EDF1F5, --text #18212B, --muted #52606D, --border #7B8794. Dark surfaces are neutral --bg #101418, --canvas #151B22, --surface #1D2630, --surface-raised #263340, --text #EFF3F7, --muted #C0CAD4, --border #7C8A99. The former green theme is removed. Status colors remain separate and have light/dark foreground/background token pairs. All colors, including charts/messages/hover/focus, come from the stylesheet tokens. See DESIGN.md for current measured pairs.
+
+Theme preference: localStorage phcm-theme stores automatic/light/dark. theme.js runs synchronously before CSS and sets data-theme, data-theme-choice and color-scheme on html. Automatic follows prefers-color-scheme live; explicit choices remain fixed. Do not reintroduce body.dark toggles or blanket svg styles. Dropdowns preserve underlying native select values and change events for existing business forms. The shared enhancement also handles dynamically opened modals.
+
+Only icon library: locally installed `lucide-static` 1.61.0, ISC license copied to assets. Local SVG sprite: icons.svg; circle-check, triangle-alert, circle-alert, octagon-alert and chevron-down. `ui.js` icon() and badge() helpers provide SVGs; decorative SVG gets aria-hidden=true and focusable=false; meaning is conveyed by adjacent visible label, or aria-label for standalone meaningful icons. No Unicode symbol stand-ins or CDNs. Favicons use the supplied logo mark: ICO, embedded-raster SVG, PNG sizes, apple-touch 180px. Maintain aspect ratio.
 
 Accessibility: color plus SVG icon plus visible status text; AA text contrast 4.5:1, large text/UI 3:1; visible focus, semantic controls, labeled inputs, keyboard navigation, skip link, sortable/filterable/paginated/sticky-header tables, empty/error states and destructive confirmation. Charts include text descriptions and exact monetary text. SVG line styling and dash patterns distinguish actual/forecast/ceiling without color alone.
 
@@ -115,6 +122,8 @@ Accessibility: color plus SVG icon plus visible status text; AA text contrast 4.
 - Do not reset or overwrite user data. Seed is additive; back up before reset.
 
 ## Current status
+
+UI consistency follow-up (2026-10-23): completed shared 12px controls, rounded/clipped dropdown panels, centered pagination/action groups, neutral persisted Automatic/Light/Dark themes before first paint, responsive SVG amount/date axes and legend, token-based messages/spacing and readable settings/KPI labels. No financial/data behavior changed. Browser: eight Finance tabs in three modes plus Administration/login/regional forms (35 combinations), and final three-theme modal checks; zero checked text-contrast failures. Theme persistence verified in browser; live OS change and blocked-storage behavior covered by isolated tests. Mobile chart measured 368.9px wide by 280px high at a 443px CSS viewport, 12px labels within bounds, scrollWidth=443. All new icons use existing local Lucide. Tests now 23 total.
 
 | Module | Status | Evidence |
 |---|---|---|

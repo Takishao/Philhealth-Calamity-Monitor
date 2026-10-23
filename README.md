@@ -10,7 +10,7 @@ cd ~/Desktop/Philhealth-Calamity-Monitor
 Open http://localhost:3000. The first start installs locked dependencies and seeds an illustrative local database. Demo login: `cfb` / `demo1234`. Other illustrative users: `act`, `exe`, `aud`, `adm`, `ros_iva`, `ros_vii`, `ros_xi`, `rvp_vii`; same password. Roles: Central Finance, accounting, executive approver, read-only auditor, administrator, regional staff and regional approver respectively.
 
 Manual install/run: `cd philhealth && npm ci && npm run seed && npm start`.
-Tests: `cd philhealth && npm test` (21 automated tests, including the no-emoji guard). No build step: the server serves native JavaScript/CSS.
+Tests: `cd philhealth && npm test` (23 automated tests, including the no-emoji guard). No build step: the server serves native JavaScript/CSS.
 Stop with Control-C. Seed is additive; it does not reset your data. To reset demo data, stop the server, move `philhealth/backend/data/calamity.db` and its `-wal`/`-shm` companions to a backup folder, then run `./start.sh`. Never do this to a real database.
 Optional environment: `PORT=3000 HOST=127.0.0.1`; see `.env.example` (shell variables, no dotenv loader).
 
@@ -31,3 +31,9 @@ Favicons use the supplied PhilHealth logo mark with its aspect ratio preserved: 
 Select Typhoon Sample for the worked 80% warning example. Select Normal sample (50%), Danger sample (92%) or Critical sample (102%) to inspect each condition. All are illustrative. Administration (`adm`) configures warning/danger/critical percentages and the reporting as-of date. The seeded as-of date is 2026-10-15; change it deliberately when testing current activity.
 
 Central Finance (`cfb`) registers events, providers and requests. Regional staff (`ros_xi`) encode/import XI claims. Finance reviews and approves claims; accounting (`act`) records partial or full payments. An independent approver (`exe`) can record provider-request decisions and approve allocation revisions. The auditor (`aud`) has read-only views and evidence export. Route criteria are illustrative pending the missing paper details.
+
+## Appearance
+
+Use the Theme dropdown on any screen, including login: Automatic follows the OS appearance and updates live; Light and Dark are explicit choices. Your choice is saved locally and applied before the page paints. Both themes use neutral surfaces, with PhilHealth brand and condition colors kept separate. Controls share a 12px radius. Dropdowns support arrows, Home/End, typing, Enter, Escape and Tab.
+
+The dashboard chart uses responsive SVG with amount/date axes and an actual/forecast/ceiling legend. A flat trend is expected when there are no new commitments in the displayed weeks; an explanatory message makes this explicit. No financial calculation changes were made in the appearance update.
