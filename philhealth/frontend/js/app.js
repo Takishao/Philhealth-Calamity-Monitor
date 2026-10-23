@@ -1,5 +1,6 @@
+import { watchDropdowns } from './dropdowns.js';
 import { api, setCsrfToken } from './api.js';
-import { el, toast } from './ui.js';
+import { el, toast, themeControl } from './ui.js';
 import { loginView } from './views/login.js';
 import { dashboardView } from './views/dashboard.js';
 import { claimsView } from './views/claims.js';
@@ -14,7 +15,7 @@ const pages = [['events','Events & budgets',['CFB','EXE','AUD']],['requests','Pr
 
 
 async function render() {
-  const version=++renderVersion;root.setAttribute('aria-busy','true');root.querySelector('.loading')?.remove();root.prepend(el('p',{class:'loading',role:'status'},'Loading workspace...'));
+  const version=++renderVersion;root.setAttribute('aria-busy','true');root.querySelector('.loading')?.remove();root.prepend(el('p',{class:'loading',role:'status'},'Loading workspace…'));
   try {
     if (!user) { const session = await api('/me'); user = session.user; setCsrfToken(session.csrfToken); }
     let route = location.hash.slice(1) || 'dashboard';
@@ -24,18 +25,19 @@ async function render() {
       history.replaceState(null, '', `#${route}`);
     }
     const nav = el('nav', { class: 'nav' }, pages.filter(page => page[2].includes(user.role)).map(page => el('a', { href: `#${page[0]}`, class: route === page[0] ? 'active' : '' }, page[1])));
-    const logout = el('button', { class: 'primary', onclick: async () => { try { await api('/logout', { method: 'POST' }); user = null; setCsrfToken(''); render(); } catch (error) { toast(error.message); } } }, 'Log out');
-    const dark=el('button',{class:'theme-toggle',onclick:()=>document.body.classList.toggle('dark')},'Theme');
+    const logout = el('button', { class: 'primary', onclick: async () => { try { await api('/logout', { method: 'POST' }); user = null; setCsrfToken(''); render(); } catch (error) { toast(error.message, 'error'); } } }, 'Log out');
+    const theme=themeControl();
     const events=await api('/events');if(!events.some(e=>e.id===eventId)&&events.length)setEvent(events[0].id);
     const selector=el('select',{'aria-label':'Selected event',onchange:e=>{setEvent(e.target.value);render();}},events.map(e=>el('option',{value:e.id,selected:e.id===eventId?'':null},e.name)));
     selector.value=eventId;
     const view = route === 'dashboard' ? await dashboardView() : route === 'claims' ? await claimsView() : route === 'settings' ? await settingsView(render) : await moduleView(route,user,render);
     if(version!==renderVersion)return;root.setAttribute('aria-busy','false');
-    root.replaceChildren(el('section', { class: 'shell' }, el('aside', { class: 'side' }, el('a',{href:'#dashboard',class:'brand'},el('img',{src:'/assets/philhealth-seal.png',alt:'PhilHealth',width:'165',height:'61'})), nav), el('main', { class: 'work',id:'main',tabindex:'-1' }, el('header', { class: 'top' }, el('label',{},'Event ',selector),el('span',{class:'grow'}),`${user.username} · ${user.role}`,dark,logout),el('p',{class:'banner'},'ILLUSTRATIVE DATA · Not real PhilHealth figures or patient data'), view)));
-  } catch (error) { if(version!==renderVersion)return;root.setAttribute('aria-busy','false'); if(user && error.message!=='Authentication required.'){root.replaceChildren(el('section',{class:'shell'},el('h1',{},'Unable to load this view'),el('p',{role:'alert'},error.message),el('a',{href:'#dashboard'},'Return to dashboard')));return;} user = null; setCsrfToken(''); root.replaceChildren(loginView(next => { user = next; render(); })); if (error.message !== 'Authentication required.') toast(error.message); }
+    root.replaceChildren(el('section', { class: 'shell' }, el('aside', { class: 'side' }, el('a',{href:'#dashboard',class:'brand'},el('img',{src:'/assets/philhealth-seal.png',alt:'PhilHealth',width:'165',height:'61'})), nav), el('main', { class: 'work',id:'main',tabindex:'-1' }, el('header', { class: 'top' }, el('label',{},'Event ',selector),el('span',{class:'grow'}),`${user.username} · ${user.role}`,theme,logout),el('p',{class:'banner'},'ILLUSTRATIVE DATA · Not real PhilHealth figures or patient data'), view)));
+  } catch (error) { if(version!==renderVersion)return;root.setAttribute('aria-busy','false'); if(user && error.message!=='Authentication required.'){root.replaceChildren(el('section',{class:'shell'},el('h1',{},'Unable to load this view'),el('p',{role:'alert'},error.message),el('a',{href:'#dashboard'},'Return to dashboard')));return;} user = null; setCsrfToken(''); root.replaceChildren(loginView(next => { user = next; render(); })); if (error.message !== 'Authentication required.') toast(error.message, 'error'); }
 }
 
 window.addEventListener('hashchange', render);
+watchDropdowns();
 render();
 
 document.querySelector('.skip').addEventListener('click',e=>{e.preventDefault();document.querySelector('#main')?.focus();});
