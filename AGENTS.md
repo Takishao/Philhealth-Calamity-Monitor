@@ -176,3 +176,5 @@ Update the Current status section and AUDIT.md at the end of every session.
 Header and favicon follow-up (2026-10-23): removed visible Event and Theme labels and account role text. Both accessible dropdowns remain. Login has no theme selector. Browser icons use a simplified two-figure brand mark with larger shapes for small sizes. The full supplied logo stays in header and login.
 
 - Use friendly, direct, clear sentences and instructions. Avoid em dashes and semicolons in prose. Keep required programming syntax intact.
+
+Transparent tab icon (2026-10-23): removed the white background from SVG, ICO and PNG browser icons. Increased the mark size by about 7 percent within the fixed browser icon area. Versioned asset links refresh cached icons. PNG corner alpha verified as zero.
