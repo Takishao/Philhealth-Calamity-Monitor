@@ -97,7 +97,7 @@ Threshold settings: warning_pct=80, danger_pct=90, critical_pct=100, strictly in
 
 ## Design system and icons
 
-Existing logo: `philhealth/frontend/assets/philhealth-seal.png`, 330x121 RGBA. Opaque saturated-pixel sampling found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
+Current logo: `philhealth/frontend/assets/philhealth-logo.png`, owner-supplied 1920x703 RGBA, copied without modification on 2026-10-23. Shared header/login reference it on every maintained tab; legacy mock header/login also reference the same supplied asset. Preserve aspect ratio with height:auto and retain the white logo surface in both themes. The earlier 330x121 philhealth-seal.png is retained as an unused historical asset. Historical palette sampling of the earlier 330x121 asset found yellow #FCD116 (2484 pixels), green #009246 (969). Transparent pixels excluded. See DESIGN.md for contrast ratios.
 
 Current control tokens: --radius-button 12px, --radius-input and --radius-panel alias it; --radius-card 16px. Spacing: --space-1/2/3/4/6/8 = 4/8/12/16/24/32px. Use these tokens for all controls and layout gaps; no hardcoded button radii.
 
@@ -122,6 +122,8 @@ Accessibility: color plus SVG icon plus visible status text; AA text contrast 4.
 - Do not reset or overwrite user data. Seed is additive; back up before reset.
 
 ## Current status
+
+Logo follow-up (2026-10-23): replaced shared header/login branding on every tab with the exact owner-supplied high-resolution PNG; transparent image preserved byte-for-byte, accurate intrinsic dimensions and height:auto. Existing theme colors and favicon mark remain unchanged.
 
 UI consistency follow-up (2026-10-23): completed shared 12px controls, rounded/clipped dropdown panels, centered pagination/action groups, neutral persisted Automatic/Light/Dark themes before first paint, responsive SVG amount/date axes and legend, token-based messages/spacing and readable settings/KPI labels. No financial/data behavior changed. Browser: eight Finance tabs in three modes plus Administration/login/regional forms (35 combinations), and final three-theme modal checks; zero checked text-contrast failures. Theme persistence verified in browser; live OS change and blocked-storage behavior covered by isolated tests. Mobile chart measured 368.9px wide by 280px high at a 443px CSS viewport, 12px labels within bounds, scrollWidth=443. All new icons use existing local Lucide. Tests now 23 total.
 
