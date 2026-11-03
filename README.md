@@ -52,3 +52,7 @@ Central Finance (`cfb`) registers events, providers and requests. Regional staff
 Use the appearance dropdown in the signed-in header: Automatic follows the OS appearance and updates live. Light and Dark are explicit choices. Your choice is saved locally and applied before the page paints. Both themes use neutral surfaces, with PhilHealth brand and condition colors kept separate. Controls share a 12px radius. Dropdowns support arrows, Home/End, typing, Enter, Escape and Tab.
 
 The dashboard chart uses responsive SVG with amount/date axes and an actual/forecast/ceiling legend. A flat trend is expected when there are no new commitments in the displayed weeks. An explanatory message makes this explicit. No financial calculation changes were made in the appearance update.
+
+## Dependency and risk review
+
+The 2026-11-03 review reports zero npm audit findings after a clean install. Backup restoration into a temporary database, static-file boundary checks, transaction isolation regressions and both database suites pass. See philhealth/docs/risk-review-2026-11-03.md for the tested dependency overrides, restore commands and remaining deployment limits.

@@ -1,4 +1,14 @@
 # HANDOFF: run PhilHealth Calamity Monitor on Aiven PostgreSQL
+### Dependency and runtime risk fixes (2026-11-03)
+
+Completed the owner's requested dependency/risk review. Clean npm ci and npm audit now report zero vulnerabilities (previously 1 high and 8 moderate). Zod is 4.6.7 and Fastify 5.12.8. ExcelJS 4.4.0 and its compatible Archiver 5 stay in place; tested overrides upgrade glob 14.0.3, minimatch 11.0.4 and unzipper 0.12.5. Recursive ZIP matching and both document/streaming Excel round trips pass. No advisory suppression or unrelated native major upgrades.
+
+Fixed static path/symlink containment and directory responses, independent transaction ownership/queue cleanup using AsyncLocalStorage, and conflicting TLS URL flags. Inspection and validation helpers now share the verified client; inspection explicitly uses a read-only transaction. Migration application requires the backup manifest checksum.
+
+The previous restore limitation is resolved for the application snapshot: work/backups/aiven-2026-11-03T15-35-12.482Z.dump was restored into a new temporary database. Clone login, PHCM-DEMO totals and application audit chain passed. The clone was removed and absence verified. No original service data was reset. All 107 original business row hashes across 16 native tables remain unchanged.
+
+Verification: 31 default tests pass with one live suite skipped; explicit Aiven tests pass 14. New regressions cover archive matching, streaming Excel, path/symlink denial, independent/nested transactions, failed BEGIN cleanup, forced verified TLS and backup checksum rejection. Clean-install lockfile checks pass. Runtime remains localhost testing only. Native legacy audit canonicalization and production concurrency/load remain outside the verified scope. Details and commands: philhealth/docs/risk-review-2026-11-03.md.
+
 ### PostgreSQL testing runtime completed (2026-11-03)
 
 Owner approved the proposed sidecars and confirmed pesos, role translation, claim/service/filed date mappings and case_type. Owner requested demo/testing records. Dedicated PostgreSQL fixtures created nine demo_* accounts and four labeled PHCM-* events without resetting existing data. Initial application reporting date is 2026-11-03. Local server runs at http://localhost:3000 using ignored philhealth/.env with DB_DRIVER=postgres, SEED_DEMO=0 and verified CA TLS. SQLite remains the code default and all in-memory tests force SQLite.
