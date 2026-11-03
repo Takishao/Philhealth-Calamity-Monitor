@@ -1,25 +1,48 @@
 # PhilHealth Calamity Monitor: continuation guide
 
+## Aiven PostgreSQL migration (active task, started 2026-11-03)
+
+Goal: run this app locally at http://localhost:3000 against the owner's existing Aiven PostgreSQL service. The Aiven service is already set up. Only this app changes. Read `HANDOFF.md` before touching code. It has the folder map, gaps, open questions and the step plan.
+
+Paths:
+- Working copy, edit here: `/Users/takishao/Downloads/Personal Workspace/Philhealth-Calamity-Monitor`
+- Original, read only: `/Users/takishao/Downloads/Philhealth-Calamity-Monitor-main`. It holds the earlier Aiven docs and scripts to copy from.
+
+Rules for this task:
+- The database driver change is the one approved exception to the stack rule below. Keep SQLite as the default driver for tests and offline work (`DB_DRIVER=sqlite`). Add Aiven as `DB_DRIVER=postgres`.
+- Work on a new branch `aiven-postgres`. Small commits. Never push to main.
+- Use verified TLS with the supplied CA (`ssl: { ca, rejectUnauthorized: true }`). Never disable certificate checks.
+- Keep secrets out of Git. `DATABASE_URL` and `AIVEN_CA_CERT_PATH` live in an untracked `.env`. Never print or commit them.
+- Do not alter, delete, truncate or reset existing Aiven tables or rows. Add new tables only, with an `app_` prefix, after the owner approves and a backup exists.
+- Never run local SQLite migrations or the SQLite demo seed against PostgreSQL. The owner explicitly authorized the separate guarded seed-postgres-demo.js for illustrative testing.
+- Do not guess the open field mappings in `HANDOFF.md`. Ask the owner.
+- Keep API response shapes, integer centavo amounts and ISO date strings unchanged so the frontend needs no edits.
+- Database calls become asynchronous with `pg`. Every caller needs `await`. Use parameterized queries only (`$1`, `$2`).
+- Existing tests must keep passing on SQLite. Add PostgreSQL integration tests that skip when `DATABASE_URL` is missing.
+- Environment variables: `DATABASE_URL`, `AIVEN_CA_CERT_PATH`, `DB_DRIVER`, `SEED_DEMO`, `PORT`, `HOST`, `TRUST_PROXY`.
+- At the end of each session, update the Current status section and `AUDIT.md`.
+
+
 ## Purpose and owner goals
 
-An illustrative local calamity claims and budget monitor, audited against the owner's paper-derived specification. Preserve the Fastify/SQLite/vanilla JavaScript stack. The owner wants a complete module audit, logo-derived palette, consistent budget condition coloring, usable workflows, reproducible startup and honest evidence. No real PhilHealth or patient data.
+An illustrative local calamity claims and budget monitor, audited against the owner's paper-derived specification. Preserve the Fastify and vanilla JavaScript stack. The database driver change to Aiven PostgreSQL is the one approved exception, see the Aiven section. The owner wants a complete module audit, logo-derived palette, consistent budget condition coloring, usable workflows, reproducible startup and honest evidence. No real PhilHealth or patient data.
 
 ## Run, test, build and seed
 
-Repository: `/Users/takishao/Desktop/Philhealth-Calamity-Monitor`.
+Repository: `/Users/takishao/Downloads/Personal Workspace/Philhealth-Calamity-Monitor`.
 Verified environment: macOS 27.2 Apple silicon, Node 26.8.2, npm 11.19.1. Supported Node 22+.
 
 ```sh
-cd ~/Desktop/Philhealth-Calamity-Monitor
+cd '/Users/takishao/Downloads/Personal Workspace/Philhealth-Calamity-Monitor'
 ./start.sh
 ```
 
-URL: http://localhost:3000. Start script installs locked dependencies if absent, runs additive demo seeding, starts the server. Manual: `cd philhealth && npm ci && npm run seed && npm start`. No build step. Native frontend modules are served directly.
+URL: http://localhost:3000. Start script installs locked dependencies if absent, loads philhealth/.env and starts the server. SQLite seeds only when SEED_DEMO=1. PostgreSQL never seeds automatically. Manual: `cd philhealth && npm ci && npm run seed && npm start`. No build step. Native frontend modules are served directly.
 
 Demo usernames: `cfb` (Central Finance), `act` (accounting), `exe` (executive approver), `aud` (read-only auditor), `adm` (administrator), `ros_iva`, `ros_vii`, `ros_xi` (regional staff), `rvp_vii` (regional approver). All passwords: `demo1234`. Illustrative local credentials only.
 
 ```sh
-cd ~/Desktop/Philhealth-Calamity-Monitor/philhealth
+cd '/Users/takishao/Downloads/Personal Workspace/Philhealth-Calamity-Monitor'/philhealth
 npm test
 npm run check:emoji
 npm audit
@@ -29,7 +52,7 @@ Tests: 22 domain/API/presentation tests plus 1 isolated guard regression test (2
 
 Reset: stop server, move `philhealth/backend/data/calamity.db` and any `-wal`/`-shm` companions to a backup directory, then run `./start.sh`. Do not delete real data. Seed is additive and never resets existing records. Demo as-of date defaults to 2026-10-15, adjustable by `adm`. New activity after that date requires a deliberate as-of-date update for forecasting/aging.
 
-`.env.example` lists optional shell variables. There is no dotenv loader. `PORT=3000`, `HOST=127.0.0.1`. `TRUST_PROXY=1` only behind a trusted proxy. Local Secure cookies require localhost (127.0.0.1 browser visits redirect). The frontend is not the legacy Live Server prototype.
+`.env.example` lists optional shell variables. Node loads the untracked philhealth/.env using --env-file-if-exists. There is no dotenv dependency. `PORT=3000`, `HOST=127.0.0.1`. `TRUST_PROXY=1` only behind a trusted proxy. Local Secure cookies require localhost (127.0.0.1 browser visits redirect). The frontend is not the legacy Live Server prototype.
 
 ## Stack and folder map
 
@@ -111,17 +134,41 @@ Accessibility: color plus SVG icon plus visible status text. AA text contrast 4.
 
 ## Rules
 
-- Work on branches, use small commits. Never push to main. Current branch: ux-and-module-audit. No push has been performed.
+- Work on branches, use small commits. Never push to main. Current branch: aiven-postgres. No push has been performed.
 - Never use emojis in UI, code, data, docs, exports or commit messages. Use icons from the chosen icon library only. Run the emoji check before finishing any session.
 - Use illustrative data only and label it. Do not enter real patient or PhilHealth figures.
 - No email/SMS implementation. Preserve extension point.
 - Do not delete features without asking. Preserve the legacy prototype, operational KPIs and theme switch.
-- Do not rewrite the stack. Add SQL migrations rather than changing applied migrations.
+- Do not rewrite the stack. The Aiven PostgreSQL driver is the only approved exception. Add SQL migrations rather than changing applied migrations.
 - All reports and dashboard must share snapshot totals and event/region scope.
 - Audit log and request histories have no update/delete API. SQL triggers also reject changes. Do not bypass them.
 - Do not reset or overwrite user data. Seed is additive. Back up before reset.
 
 ## Current status
+
+### PostgreSQL testing runtime completed (2026-11-03)
+
+Owner approved the proposed sidecars and confirmed pesos, role translation, claim/service/filed date mappings and case_type. Owner requested demo/testing records. Dedicated PostgreSQL fixtures created nine demo_* accounts and four labeled PHCM-* events without resetting existing data. Initial application reporting date is 2026-11-03. Local server runs at http://localhost:3000 using ignored philhealth/.env with DB_DRIVER=postgres, SEED_DEMO=0 and verified CA TLS. SQLite remains the code default and all in-memory tests force SQLite.
+
+Implemented async database callers across auth, events, workflow, finance, exceptions, modules, reports, metrics, rules and server. Local request transactions serialize writes and commit before responses. Migration 002 adds app-owned sidecars, compatibility views and guarded native writes. Migration 003 exposes the existing native audit ledger separately at /api/audit/legacy without claiming hash verification. Existing security tables are reused. No applied migration was edited. Native money remains exact decimal pesos and the API remains safe integer centavos. Payment reversals subtract from paid totals. New requests/settings/derived exceptions/application audit have separate app-owned storage. Read philhealth/docs/aiven-postgresql-integration.md for these boundaries.
+
+Pre-existing native events are read-only through the bridge. Only app_owned_events can receive business mutations. Native original rows are unchanged: server-side row hashes verified all 107 original rows across 16 business tables after migration and testing. No existing user passwords were changed. New demo login: demo_cfb / demo1234, with role variants documented in README. Existing legacy audit canonicalization is still unconfirmed, so the application ledger remains separate.
+
+Backups: original pre-migration custom archive plus refreshed public-schema archive work/backups/aiven-2026-11-03T15-20-08.629Z.dump, with manifest and listing. pg_restore listing and full decoding passed, files are owner-only and ignored. Isolated restoration has not been tested. Repeatable backup command: node --env-file=.env backend/backup-postgres.js from philhealth/.
+
+Validation: SQLite/default npm test passes 24 checks with one live PostgreSQL suite skipped (23 main tests including SQL translation plus the separate guard regression). Explicit PostgreSQL run passes 14 tests including its parent/subtests. It covers nine mapped logins, CSRF, lockout, regional isolation, exact 12345-centavo/123.45-peso storage, transitions, partial/full payments, reconciliation, CSV preview and full rollback after a native failure, settings, allocation revision approval, request history, six reports in all three formats, audit immutability and unchanged native rows. Syntax checks passed for all 39 backend/frontend JavaScript files. No-emoji scan and git diff --check passed. Browser login, existing and testing dashboards and event selection passed. Mobile 390px and desktop were smoke-checked. Initial unauthenticated /api/me 401 is expected.
+
+Known limits: one serialized connection is for local testing, not production scaling. Native legacy audit chain is not verified. Existing native exception review outcomes and privilege requests remain separate from the app-owned workflows. npm audit reports 9 vulnerabilities (8 moderate, 1 high) in the existing ExcelJS/minimatch and Zod dependency chains. Breaking dependency upgrades were not applied. No push or deployment.
+
+### Aiven read-only verification (2026-11-03)
+
+Continued on existing `aiven-postgres` branch without discarding uncommitted preparation. Supplied root `ca.pem` parses successfully and is Git-ignored. Existing untracked `philhealth/.env` allowed `npm run db:inspect` to complete with CA verification enabled. No credentials are recorded here.
+
+Live schema differs from the handoff baseline: `app_sessions`, `app_login_attempts`, `providers`, `request_approvals`, `role_permissions` and `import_batches` already exist. Do not apply the security migration blindly. Read-only schema output is in ignored `work/aiven-schema.json`. Constraint and view definitions were captured in `work/aiven-definitions.json` using an explicit read-only transaction. Counts: 9 users, 7 roles, 1 event, 8 claims, 5 payments and 3 exceptions. No Aiven rows or schema were changed.
+
+Live claim constraints allow SUBMITTED, UNDER_REVIEW, APPROVED, PAID, RECONCILED, RETURNED, DENIED, RESUBMITTED and CANCELLED. Event statuses are ACTIVE and CLOSED. Payments have PAYMENT and REVERSAL entry types, with reversal links required. These constraints establish allowed values, not approved application transitions.
+
+Owner answers are still required for monetary units, role translation, service/discharge date semantics, missing-field storage, audit canonicalization, and approval plus backup before any additive tables. A known test account is also needed for password compatibility checks. Runtime remains SQLite until mappings and integration tests are complete.
 
 Transparent branding follow-up (2026-10-23): copied the latest attached 900x900 RGBA symbol exactly. Removed the white brand panel globally. PhilHealth and the lower tagline now adapt to Light/Dark via logo tokens. Shared header/login and legacy mock display are updated.
 
@@ -184,3 +231,13 @@ Condition column alignment (2026-10-23): event condition cells use a shared grid
 Login copy cleanup (2026-10-23): removed the visible demo credentials hint below the login title at the owner's request. Demo login instructions remain in README. Authentication is unchanged.
 
 Analytics spacing (2026-10-23): added a 24px token-based gap between the scenario form and its results. Calculation and data handling stay unchanged.
+
+Validation for this continuation: all 23 SQLite tests passed, emoji scan found zero occurrences, both Aiven preparation scripts passed node --check, and git diff --check passed. npm audit reports 9 vulnerabilities (8 moderate, 1 high), including minimatch transitively through ExcelJS and Zod. Suggested fixes include breaking dependency changes and were not applied. Browser and PostgreSQL runtime workflow tests were not run.
+
+### Owner confirmations and backup (2026-11-03)
+
+Owner confirmed Aiven money is pesos, role translation CENTRAL_FIN/REGIONAL_STAFF/REGIONAL_VP/PRESIDENT/TREASURY/AUDITOR/ADMIN to CFB/ROS/RVP/EXE/ACT/AUD/ADM, service_date as discharge date, and filed_date as filing date. Role translation may be revised later. API amounts remain integer centavos. Owner authorized creating a backup.
+
+Created a custom-format pg_dump backup at ignored work/backups/aiven-2026-11-03T14-51-23.610Z.dump using verify-full TLS and the supplied CA. File permissions are 0600. Size 77,218 bytes. SHA-256: 9367c1f52efc9246ec9662b4a42b35554687e0d82cfe7afcc5c3771d2133ee6f. pg_restore --list and full decoding to /dev/null both succeeded. This verifies archive readability, not restoration into a separate database. No remote data or schema changed.
+
+Remaining decisions are described in philhealth/docs/aiven-storage-proposal.md. No new app_ tables are approved or applied yet. Audit serialization compatibility is unresolved.

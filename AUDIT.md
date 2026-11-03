@@ -122,3 +122,37 @@ Condition column alignment (2026-10-23): event condition cells use a shared grid
 Login copy cleanup (2026-10-23): removed the visible demo credentials hint below the login title at the owner's request. Demo login instructions remain in README. Authentication is unchanged.
 
 Analytics spacing (2026-10-23): added a 24px token-based gap between the scenario form and its results. Calculation and data handling stay unchanged.
+
+### Aiven read-only verification (2026-11-03)
+
+Continued on existing `aiven-postgres` branch without discarding uncommitted preparation. Supplied root `ca.pem` parses successfully and is Git-ignored. Existing untracked `philhealth/.env` allowed `npm run db:inspect` to complete with CA verification enabled. No credentials are recorded here.
+
+Live schema differs from the handoff baseline: `app_sessions`, `app_login_attempts`, `providers`, `request_approvals`, `role_permissions` and `import_batches` already exist. Do not apply the security migration blindly. Read-only schema output is in ignored `work/aiven-schema.json`. Constraint and view definitions were captured in `work/aiven-definitions.json` using an explicit read-only transaction. Counts: 9 users, 7 roles, 1 event, 8 claims, 5 payments and 3 exceptions. No Aiven rows or schema were changed.
+
+Live claim constraints allow SUBMITTED, UNDER_REVIEW, APPROVED, PAID, RECONCILED, RETURNED, DENIED, RESUBMITTED and CANCELLED. Event statuses are ACTIVE and CLOSED. Payments have PAYMENT and REVERSAL entry types, with reversal links required. These constraints establish allowed values, not approved application transitions.
+
+Owner answers are still required for monetary units, role translation, service/discharge date semantics, missing-field storage, audit canonicalization, and approval plus backup before any additive tables. A known test account is also needed for password compatibility checks. Runtime remains SQLite until mappings and integration tests are complete.
+
+Validation for this continuation: all 23 SQLite tests passed, emoji scan found zero occurrences, both Aiven preparation scripts passed node --check, and git diff --check passed. npm audit reports 9 vulnerabilities (8 moderate, 1 high), including minimatch transitively through ExcelJS and Zod. Suggested fixes include breaking dependency changes and were not applied. Browser and PostgreSQL runtime workflow tests were not run.
+
+### Owner confirmations and backup (2026-11-03)
+
+Owner confirmed Aiven money is pesos, role translation CENTRAL_FIN/REGIONAL_STAFF/REGIONAL_VP/PRESIDENT/TREASURY/AUDITOR/ADMIN to CFB/ROS/RVP/EXE/ACT/AUD/ADM, service_date as discharge date, and filed_date as filing date. Role translation may be revised later. API amounts remain integer centavos. Owner authorized creating a backup.
+
+Created a custom-format pg_dump backup at ignored work/backups/aiven-2026-11-03T14-51-23.610Z.dump using verify-full TLS and the supplied CA. File permissions are 0600. Size 77,218 bytes. SHA-256: 9367c1f52efc9246ec9662b4a42b35554687e0d82cfe7afcc5c3771d2133ee6f. pg_restore --list and full decoding to /dev/null both succeeded. This verifies archive readability, not restoration into a separate database. No remote data or schema changed.
+
+Remaining decisions are described in philhealth/docs/aiven-storage-proposal.md. No new app_ tables are approved or applied yet. Audit serialization compatibility is unresolved.
+
+### PostgreSQL testing runtime completed (2026-11-03)
+
+Owner approved the proposed sidecars and confirmed pesos, role translation, claim/service/filed date mappings and case_type. Owner requested demo/testing records. Dedicated PostgreSQL fixtures created nine demo_* accounts and four labeled PHCM-* events without resetting existing data. Initial application reporting date is 2026-11-03. Local server runs at http://localhost:3000 using ignored philhealth/.env with DB_DRIVER=postgres, SEED_DEMO=0 and verified CA TLS. SQLite remains the code default and all in-memory tests force SQLite.
+
+Implemented async database callers across auth, events, workflow, finance, exceptions, modules, reports, metrics, rules and server. Local request transactions serialize writes and commit before responses. Migration 002 adds app-owned sidecars, compatibility views and guarded native writes. Migration 003 exposes the existing native audit ledger separately at /api/audit/legacy without claiming hash verification. Existing security tables are reused. No applied migration was edited. Native money remains exact decimal pesos and the API remains safe integer centavos. Payment reversals subtract from paid totals. New requests/settings/derived exceptions/application audit have separate app-owned storage. Read philhealth/docs/aiven-postgresql-integration.md for these boundaries.
+
+Pre-existing native events are read-only through the bridge. Only app_owned_events can receive business mutations. Native original rows are unchanged: server-side row hashes verified all 107 original rows across 16 business tables after migration and testing. No existing user passwords were changed. New demo login: demo_cfb / demo1234, with role variants documented in README. Existing legacy audit canonicalization is still unconfirmed, so the application ledger remains separate.
+
+Backups: original pre-migration custom archive plus refreshed public-schema archive work/backups/aiven-2026-11-03T15-20-08.629Z.dump, with manifest and listing. pg_restore listing and full decoding passed, files are owner-only and ignored. Isolated restoration has not been tested. Repeatable backup command: node --env-file=.env backend/backup-postgres.js from philhealth/.
+
+Validation: SQLite/default npm test passes 24 checks with one live PostgreSQL suite skipped (23 main tests including SQL translation plus the separate guard regression). Explicit PostgreSQL run passes 14 tests including its parent/subtests. It covers nine mapped logins, CSRF, lockout, regional isolation, exact 12345-centavo/123.45-peso storage, transitions, partial/full payments, reconciliation, CSV preview and full rollback after a native failure, settings, allocation revision approval, request history, six reports in all three formats, audit immutability and unchanged native rows. Syntax checks passed for all 39 backend/frontend JavaScript files. No-emoji scan and git diff --check passed. Browser login, existing and testing dashboards and event selection passed. Mobile 390px and desktop were smoke-checked. Initial unauthenticated /api/me 401 is expected.
+
+Known limits: one serialized connection is for local testing, not production scaling. Native legacy audit chain is not verified. Existing native exception review outcomes and privilege requests remain separate from the app-owned workflows. npm audit reports 9 vulnerabilities (8 moderate, 1 high) in the existing ExcelJS/minimatch and Zod dependency chains. Breaking dependency upgrades were not applied. No push or deployment.

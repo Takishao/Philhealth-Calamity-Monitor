@@ -1,22 +1,37 @@
 # How to run
 
-Prerequisites: macOS/Linux, Node.js 22+ and npm. Verified on macOS 27.2 (Apple silicon), Node 26.8.2, npm 11.19.1.
+Prerequisites: macOS/Linux, Node.js 22.9+ and npm.
 
 ```sh
-cd ~/Desktop/Philhealth-Calamity-Monitor
+cd '/Users/takishao/Downloads/Personal Workspace/Philhealth-Calamity-Monitor'
 ./start.sh
 ```
 
-Open http://localhost:3000. The first start installs locked dependencies and seeds an illustrative local database. Demo login: `cfb` / `demo1234`. Other illustrative users: `act`, `exe`, `aud`, `adm`, `ros_iva`, `ros_vii`, `ros_xi`, `rvp_vii`. Same password. Roles: Central Finance, accounting, executive approver, read-only auditor, administrator, regional staff and regional approver respectively.
+Open http://localhost:3000. This working copy uses Aiven PostgreSQL through the untracked `philhealth/.env`. TLS verifies the supplied `ca.pem`. Startup never migrates or seeds PostgreSQL automatically.
 
-Manual install/run: `cd philhealth && npm ci && npm run seed && npm start`.
-Tests: `cd philhealth && npm test` (23 automated tests, including the no-emoji guard). No build step: the server serves native JavaScript/CSS.
-Stop with Control-C. Seed is additive. It does not reset your data. To reset demo data, stop the server, move `philhealth/backend/data/calamity.db` and its `-wal`/`-shm` companions to a backup folder, then run `./start.sh`. Never do this to a real database.
-Optional environment: `PORT=3000 HOST=127.0.0.1`. See `.env.example` (shell variables, no dotenv loader).
+Testing login: `demo_cfb` / `demo1234`. Other demo accounts use the same password: `demo_act`, `demo_exe`, `demo_aud`, `demo_adm`, `demo_ros_iva`, `demo_ros_vii`, `demo_ros_xi`, `demo_rvp_vii`. These are illustrative local testing accounts. Keep this server bound to localhost.
+
+Select **Warning testing event - illustrative only** for the PHP50M ceiling, PHP40M committed and PHP32M paid example. Normal, Danger and Critical testing events demonstrate the other conditions. The testing reporting date is 2026-11-03, configurable by `demo_adm`. New claims need a provider, discharge date and filing date. Aiven stores pesos. APIs and financial calculations use integer centavos.
+
+Events present before this integration remain readable but cannot be changed through the app. Use the labeled testing events or create a new event as `demo_cfb`. The new application audit ledger and monetary provider requests are separate from Aiven's legacy audit ledger and privilege requests. The derived exceptions queue and settings/history use app-owned tables. Legacy audit data is available read-only to Finance and Auditor at `/api/audit/legacy`; its hash algorithm is not verified.
+
+Stop with Control-C. Manual startup: `cd philhealth && npm ci && npm start`. There is no build step. Node loads `philhealth/.env` directly, without dotenv. Secrets, the CA and backups are ignored by Git.
+
+SQLite stays the default driver when no environment configuration is supplied. For offline illustrative work:
+
+```sh
+DB_DRIVER=sqlite SEED_DEMO=1 ./start.sh
+```
+
+SQLite uses `philhealth/backend/data/calamity.db`. Its additive seed never resets existing data. Back up the database and WAL/SHM companions before any manual reset. Do not run `npm run seed` against PostgreSQL.
+
+Checks: `cd philhealth && npm test` runs the SQLite suites, SQL translation checks and no-emoji guard. PostgreSQL integration skips without DATABASE_URL. `npm run test:postgres` explicitly loads `.env` and adds labeled integration-test records without deleting them. Run that command only on this authorized testing service.
+
+PostgreSQL backup and migrations: see `philhealth/docs/aiven-postgresql-integration.md`. Existing schema must be reviewed before migration. Runtime uses one serialized database connection for consistent local testing, with an advisory lock across app instances. It is not a production concurrency design.
 
 # PhilHealth Calamity Monitor
 
-The maintained application is `philhealth/` (Fastify, SQLite, vanilla JavaScript). Root `frontend/` and `backend/data/mock-api.js` are preserved legacy mock prototypes. Do not run them for financial reporting. All sample figures are illustrative, not real PhilHealth data. See AUDIT.md and AGENTS.md.
+The maintained application is `philhealth/` (Fastify, SQLite or PostgreSQL, vanilla JavaScript). Root `frontend/` and `backend/data/mock-api.js` are preserved legacy mock prototypes. Do not run them for financial reporting. All sample figures are illustrative, not real PhilHealth data. See AUDIT.md and AGENTS.md.
 
 ## Icons and no-emoji rule
 
