@@ -16,7 +16,7 @@ export function registerReportRoutes(app,db){
  for(const format of ['csv','xlsx','pdf']) app.get('/api/reports.'+format,async(req,reply)=>{
  if(!req.user)return reply.code(401).send({error:'Authentication required.'});
  if(req.user.role==='ADM')return reply.code(403).send({error:'Permission denied.'});
- const data=snapshot(db,req.query.eventId||db.prepare('SELECT id FROM calamity_events ORDER BY id LIMIT 1').get()?.id,req.user);
+ const data=(await snapshot(db,req.query.eventId||(await db.prepare('SELECT id FROM calamity_events ORDER BY id LIMIT 1').get())?.id,req.user));
  if(!data)return reply.code(404).send({error:'Event not found.'});
  const type=Number(req.query.type||0);if(!Number.isInteger(type)||type<0||type>5)return reply.code(400).send({error:'Choose one of six reports.'});
  const rows=[['ILLUSTRATIVE DATA',data.event.id,reportNames[type]],...reportRows(data,type),[],['Shared dashboard totals (centavos)'],...Object.entries(data.totals)];

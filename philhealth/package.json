@@ -6,10 +6,15 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "node backend/server.js",
+    "start": "node --env-file-if-exists=.env backend/server.js",
     "test": "npm run check:emoji && node --test --test-reporter=tap backend/test/*.test.js && cd .. && node --test --test-reporter=tap scripts/check-no-emoji.test.mjs",
-    "seed": "node backend/seed.js",
-    "check:emoji": "node ../scripts/check-no-emoji.mjs"
+    "seed": "node --env-file-if-exists=.env backend/seed.js",
+    "check:emoji": "node ../scripts/check-no-emoji.mjs",
+    "db:inspect": "node --env-file=.env backend/inspect-aiven-schema.js",
+    "db:validate-migration": "node --env-file=.env backend/validate-aiven-migration.js",
+    "db:migrate": "node --env-file=.env backend/migrate-postgres.js",
+    "seed:postgres-demo": "node --env-file=.env backend/seed-postgres-demo.js",
+    "test:postgres": "node --env-file=.env --test backend/test/postgres.test.js"
   },
   "dependencies": {
     "argon2": "^0.41.1",
@@ -19,6 +24,7 @@
     "fastify": "^5.2.1",
     "lucide-static": "^1.61.0",
     "pdfkit": "^0.20.2",
+    "pg": "^8.16.3",
     "zod": "^3.24.1"
   },
   "allowScripts": {

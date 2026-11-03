@@ -4,9 +4,9 @@ function days(start, end) {
   return Math.max(0, Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000));
 }
 
-export function dashboardMetrics(db, eventId,user) {
-  const settings = Object.fromEntries(db.prepare('SELECT key, value FROM settings').all().map(row => [row.key, row.value]));
-  const claims = db.prepare('SELECT * FROM claims WHERE event_id = ?').all(eventId).filter(c=>!['ROS','RVP'].includes(user?.role)||c.region===user.region);
+export async function dashboardMetrics(db, eventId,user) {
+  const settings = Object.fromEntries((await db.prepare('SELECT key, value FROM settings').all()).map(row => [row.key, row.value]));
+  const claims = (await db.prepare('SELECT * FROM claims WHERE event_id = ?').all(eventId)).filter(c=>!['ROS','RVP'].includes(user?.role)||c.region===user.region);
   const paid = claims.filter(claim => ['Paid', 'Reconciled'].includes(claim.status));
   const closed = claims.filter(claim => claim.decision_date);
   const asOf = settings.as_of_date;
@@ -16,17 +16,19 @@ export function dashboardMetrics(db, eventId,user) {
     aging[age <= 30 ? 0 : age <= 60 ? 1 : age <= 90 ? 2 : 3] += 1;
   }
   const statusCounts = Object.fromEntries(claims.reduce((map, claim) => map.set(claim.status, (map.get(claim.status) || 0) + 1), new Map()));
-  const exception = type => db.prepare('SELECT claim_ref FROM exceptions WHERE type=?').all(type).filter(x=>claims.some(c=>c.ref===x.claim_ref)).length;
-  const paymentTotal = paid.reduce((sum, claim) => sum + db.prepare('SELECT COALESCE(SUM(amount), 0) AS amount FROM payments WHERE claim_ref = ?').get(claim.ref).amount, 0);
+  const exception = async type => (await db.prepare('SELECT claim_ref FROM exceptions WHERE type=?').all(type)).filter(x=>claims.some(c=>c.ref===x.claim_ref)).length;
+  const payments = await db.prepare('SELECT claim_ref, amount FROM payments').all();
+  const paidFor = claim => payments.filter(p=>p.claim_ref===claim.ref).reduce((sum,p)=>sum+p.amount,0);
+  const paymentTotal = paid.reduce((sum, claim) => sum + paidFor(claim), 0);
   return {
     statusCounts,
     aging: { '0-30': aging[0], '31-60': aging[1], '61-90': aging[2], '90+': aging[3] },
     kpis: {
       averageProcessingDays: closed.length ? Number((closed.reduce((sum, claim) => sum + days(claim.created_at.slice(0, 10), claim.decision_date), 0) / closed.length).toFixed(1)) : 0,
       beyondAgingPct: claims.length ? Number((claims.filter(claim => days(claim.created_at.slice(0, 10), asOf) > Number(settings.aging_days)).length / claims.length * 100).toFixed(2)) : 0,
-      lateFilingPct: claims.length ? Number((exception('LateFiling') / claims.length * 100).toFixed(2)) : 0,
+      lateFilingPct: claims.length ? Number(((await exception('LateFiling')) / claims.length * 100).toFixed(2)) : 0,
       denialRthResubmissionPct: claims.length ? Number((claims.filter(claim => ['Denied', 'Returned (RTH)', 'Resubmitted'].includes(claim.status)).length / claims.length * 100).toFixed(2)) : 0,
-      matchRate: paid.length ? Number((paid.filter(claim => db.prepare('SELECT COALESCE(SUM(amount), 0) AS amount FROM payments WHERE claim_ref = ?').get(claim.ref).amount === claim.approved_amount).length / paid.length * 100).toFixed(2)) : 100,
+      matchRate: paid.length ? Number((paid.filter(claim => paidFor(claim) === claim.approved_amount).length / paid.length * 100).toFixed(2)) : 100,
       costPerPaidClaim: paid.length ? Math.round(paymentTotal / paid.length) : 0
     },
     committedSql: committed

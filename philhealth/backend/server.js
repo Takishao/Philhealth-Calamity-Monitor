@@ -33,11 +33,11 @@ function guarded(roles, action) {
   };
 }
 
-function event(db) { return db.prepare('SELECT * FROM calamity_events ORDER BY id LIMIT 1').get(); }
-function claimRow(db, ref) {
-  return db.prepare(`SELECT ref, event_id, region, patient_token AS token, claim_type AS type, status,
+async function event(db) { return (await db.prepare('SELECT * FROM calamity_events ORDER BY id LIMIT 1').get()); }
+async function claimRow(db, ref) {
+  return (await db.prepare(`SELECT ref, event_id, region, patient_token AS token, claim_type AS type, status,
     claimed_amount AS claimed, approved_amount AS approved, created_at, provider_id, discharge_date,
-    filing_date, decision_date, reason_code, encoded_by, note FROM claims WHERE ref = ?`).get(ref);
+    filing_date, decision_date, reason_code, encoded_by, note FROM claims WHERE ref = ?`).get(ref));
 }
 function auditChain(rows) {
   let previous = null;
@@ -61,14 +61,22 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     return payload;
   });
+  app.addHook('onRequest', async () => db.beginRequest());
   app.addHook('onRequest', attachAuth(db));
-  app.addHook('onResponse', async (request, reply) => {
-    if (reply.statusCode === 403) {
-      appendAudit(db, request.user?.id || null, 'DENIED', 'Request', `${request.method} ${request.url}`, 'Forbidden request');
+  app.addHook('onRequest', async request => { if(db.setActor) await db.setActor(request.user?.id); });
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (reply.statusCode === 403 && !request.databaseFailed) {
+      await appendAudit(db, request.user?.id || null, 'DENIED', 'Request', `${request.method} ${request.url}`, 'Forbidden request');
     }
+    await db.endRequest(request.databaseFailed || reply.statusCode >= 500);
+    return payload;
   });
   app.addHook('onClose', async () => db.close());
   app.setErrorHandler((error, request, reply) => {
+    request.databaseFailed = true;
+    if (db.driver === 'postgres' && ['23514','23505','23503','23502','22P02','22001','22003','22007','22008','P0001'].includes(error.code)) {
+      return reply.code(422).send({ error: error.message.startsWith('Existing Aiven records') ? error.message : 'Database rejected this operation. Check required dates, references and amounts.' });
+    }
     const code = error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : 500;
     reply.code(code).send({ error: code === 500 ? 'An unexpected error occurred.' : 'Invalid request.' });
   });
@@ -79,27 +87,27 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
 
   app.get('/api/csrf', { preHandler: validate(schemas.csrf) }, async (request, reply) => {
     if (request.session) return { csrfToken: request.session.csrf_token };
-    return { csrfToken: issuePreAuthSession(db, reply) };
+    return { csrfToken: (await issuePreAuthSession(db, reply)) };
   });
   app.post('/api/login', { preHandler: [validate(schemas.login), requireCsrf] }, async (request, reply) => {
     const { username, password } = request.validated;
     const ip = request.ip;
-    if (isLockedOut(db, username, ip)) return reply.code(429).send({ error: 'Too many failed attempts. Try again in 15 minutes.' });
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    if ((await isLockedOut(db, username, ip))) return reply.code(429).send({ error: 'Too many failed attempts. Try again in 15 minutes.' });
+    const user = (await db.prepare('SELECT * FROM users WHERE username = ?').get(username));
     const valid = Boolean(user && await argon2.verify(user.password_hash, password));
-    recordLoginAttempt(db, username, ip, valid);
+    (await recordLoginAttempt(db, username, ip, valid));
     if (!valid) {
-      appendAudit(db, user?.id || null, 'LOGIN_FAILED', 'Session', username, 'Invalid credentials');
+      (await appendAudit(db, user?.id || null, 'LOGIN_FAILED', 'Session', username, 'Invalid credentials'));
       return reply.code(401).send({ error: 'Invalid username or password.' });
     }
-    const csrfToken = signIn(db, request, reply, user);
-    appendAudit(db, user.id, 'LOGIN', 'Session', user.username, 'User signed in');
+    const csrfToken = (await signIn(db, request, reply, user));
+    (await appendAudit(db, user.id, 'LOGIN', 'Session', user.username, 'User signed in'));
     return { user: { username: user.username, role: user.role, region: user.region }, csrfToken };
   });
   app.post('/api/logout', { preHandler: [validate(schemas.logout), requireCsrf] }, async (request, reply) => {
     if (request.session) {
-      db.prepare('DELETE FROM sessions WHERE id = ?').run(request.session.id);
-      appendAudit(db, request.user?.id || null, 'LOGOUT', 'Session', request.user?.username || request.session.id, 'User signed out');
+      (await db.prepare('DELETE FROM sessions WHERE id = ?').run(request.session.id));
+      (await appendAudit(db, request.user?.id || null, 'LOGOUT', 'Session', request.user?.username || request.session.id, 'User signed out'));
     }
     clearSessionCookie(reply);
     return reply.code(204).send();
@@ -111,71 +119,71 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   app.get('/api/dashboard', { preHandler: validate(schemas.dashboard) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if (request.user.role === 'ADM') return reply.code(403).send({ error: 'Your role is not allowed to perform this action.' });
-    const id=request.query.eventId || event(db)?.id;
-    const data=snapshot(db,id,request.user);
+    const id=request.query.eventId || (await event(db))?.id;
+    const data=(await snapshot(db,id,request.user));
     if(!data)return reply.code(404).send({error:'Event not found.'});
-    return {...data,operational:dashboardMetrics(db,id,request.user)};
+    return {...data,operational:(await dashboardMetrics(db,id,request.user))};
   });
   app.get('/api/claims', { preHandler: validate(schemas.claims, 'query') }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if (request.user.role === 'ADM') return reply.code(403).send({ error: 'Your role is not allowed to perform this action.' });
     const q = `%${request.validated.q || ''}%`;
-    const rows = db.prepare(`SELECT ref, event_id, provider_id, region, patient_token AS token, claim_type AS type, status, claimed_amount AS claimed, approved_amount AS approved
+    const rows = (await db.prepare(`SELECT ref, event_id, provider_id, region, patient_token AS token, claim_type AS type, status, claimed_amount AS claimed, approved_amount AS approved
       FROM claims WHERE (ref LIKE ? OR patient_token LIKE ? OR region LIKE ? OR status LIKE ?)
-      ${['ROS','RVP'].includes(request.user.role) ? 'AND region = ?' : ''} ORDER BY ref`).all(...[q, q, q, q, ...(['ROS','RVP'].includes(request.user.role) ? [request.user.region] : [])]);
+      ${['ROS','RVP'].includes(request.user.role) ? 'AND region = ?' : ''} ORDER BY ref`).all(...[q, q, q, q, ...(['ROS','RVP'].includes(request.user.role) ? [request.user.region] : [])]));
     return request.query.eventId ? rows.filter(c=>c.event_id===request.query.eventId) : rows;
   });
   app.get('/api/claims/:ref', { preHandler: validate(schemas.claim, 'params') }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if (request.user.role === 'ADM') return reply.code(403).send({ error: 'Your role is not allowed to perform this action.' });
-    const claim = claimRow(db, request.validated.ref);
+    const claim = (await claimRow(db, request.validated.ref));
     if (!claim || !canAccessClaim(request.user, claim)) return reply.code(404).send({ error: 'Claim not found.' });
-    claim.history = db.prepare(`SELECT h.status, h.created_at AS at, COALESCE(u.username, 'system') AS actor, h.note
-      FROM claim_history h LEFT JOIN users u ON u.id = h.actor_id WHERE h.claim_ref = ? ORDER BY h.id`).all(claim.ref);
+    claim.history = (await db.prepare(`SELECT h.status, h.created_at AS at, COALESCE(u.username, 'system') AS actor, h.note
+      FROM claim_history h LEFT JOIN users u ON u.id = h.actor_id WHERE h.claim_ref = ? ORDER BY h.id`).all(claim.ref));
     return claim;
   });
   app.post('/api/claims/:ref/status', { preHandler: [validate(schemas.claimStatus, 'params+body'), requireCsrf] }, async (request, reply) => {
     if (!guarded(['CFB', 'ROS'])(request, reply)) return;
     if(request.user.role==='ROS' && !['Under Review','Resubmitted'].includes(request.body?.status))return reply.code(403).send({error:'Regional encoders cannot approve or deny claims.'});
-    const claim = claimRow(db, request.validated.ref);
+    const claim = (await claimRow(db, request.validated.ref));
     if (!claim || !canAccessClaim(request.user, claim)) return reply.code(404).send({ error: 'Claim not found.' });
     const { status, approved, note = '', reasonCode, overrideReason } = request.validated;
-    const error = transitionError(db, claim, { status, approved, note, reasonCode, overrideReason }, request.user);
+    const error = (await transitionError(db, claim, { status, approved, note, reasonCode, overrideReason }, request.user));
     if (error) return reply.code(422).send({ error });
-    const transaction = db.transaction(() => {
+    const transaction = db.withTransaction(async () => {
       const nextApproved = status === 'Approved' ? (approved ?? claim.approved) : claim.approved;
-      db.prepare(`UPDATE claims SET status = ?, approved_amount = ?, reason_code = ?, note = ?,
+      (await db.prepare(`UPDATE claims SET status = ?, approved_amount = ?, reason_code = ?, note = ?,
         decision_date = CASE WHEN ? = 'Approved' THEN date('now') ELSE decision_date END WHERE ref = ?`)
-        .run(status, nextApproved, reasonCode || null, note, status, claim.ref);
-      db.prepare('INSERT INTO claim_history(claim_ref, status, actor_id, note) VALUES (?, ?, ?, ?)').run(claim.ref, status, request.user.id, note);
-      appendAudit(db, request.user.id, 'UPDATE_STATUS', 'Claim', claim.ref, `Status changed to ${status}`, { status: claim.status }, { status, approved: nextApproved });
+        .run(status, nextApproved, reasonCode || null, note, status, claim.ref));
+      (await db.prepare('INSERT INTO claim_history(claim_ref, status, actor_id, note) VALUES (?, ?, ?, ?)').run(claim.ref, status, request.user.id, note));
+      (await appendAudit(db, request.user.id, 'UPDATE_STATUS', 'Claim', claim.ref, `Status changed to ${status}`, { status: claim.status }, { status, approved: nextApproved }));
     });
-    transaction();
-    scanExceptions(db);
-    return claimRow(db, claim.ref);
+    (await transaction());
+    (await scanExceptions(db));
+    return (await claimRow(db, claim.ref));
   });
   app.get('/api/exceptions', { preHandler: validate(schemas.exceptions) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if(request.user.role==='ADM')return reply.code(403).send({error:'Permission denied.'});
-    scanExceptions(db);
-    const data=snapshot(db,request.query.eventId||event(db)?.id,request.user);
+    (await scanExceptions(db));
+    const data=(await snapshot(db,request.query.eventId||(await event(db))?.id,request.user));
     if(!data)return reply.code(404).send({error:'Event not found.'});
     return data.exceptions;
   });
   app.post('/api/exceptions/:id/resolve', { preHandler: [requireCsrf, validate(schemas.resolveException, 'params+body')] }, async (request, reply) => {
     if (!guarded(['CFB', 'ROS'])(request, reply)) return;
-    const row = db.prepare('SELECT e.*, c.region FROM exceptions e JOIN claims c ON c.ref = e.claim_ref WHERE e.id = ?').get(request.validated.id);
+    const row = (await db.prepare('SELECT e.*, c.region FROM exceptions e JOIN claims c ON c.ref = e.claim_ref WHERE e.id = ?').get(request.validated.id));
     if (!row || !canAccessClaim(request.user, row)) return reply.code(404).send({ error: 'Exception not found.' });
     if (!row.resolved_at) {
-      db.prepare('UPDATE exceptions SET resolved_at = CURRENT_TIMESTAMP, resolved_by = ?, resolution_note = ? WHERE id = ?').run(request.user.id, request.validated.note, row.id);
-      appendAudit(db, request.user.id, 'RESOLVE', 'Exception', String(row.id), request.validated.note, { resolved: false }, { resolved: true });
+      (await db.prepare('UPDATE exceptions SET resolved_at = CURRENT_TIMESTAMP, resolved_by = ?, resolution_note = ? WHERE id = ?').run(request.user.id, request.validated.note, row.id));
+      (await appendAudit(db, request.user.id, 'RESOLVE', 'Exception', String(row.id), request.validated.note, { resolved: false }, { resolved: true }));
     }
     return { id: row.id, resolved: true };
   });
   app.get('/api/analytics', { preHandler: validate(schemas.analytics) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if (!['CFB','EXE','AUD'].includes(request.user.role))return reply.code(403).send({error:'Permission denied.'});
-    const data=snapshot(db,request.query.eventId||event(db)?.id,request.user);
+    const data=(await snapshot(db,request.query.eventId||(await event(db))?.id,request.user));
     if(!data)return reply.code(404).send({error:'Event not found.'});
     const change=Number(request.query.scenarioPct||0);
     if(!Number.isFinite(change)||Math.abs(change)>100)return reply.code(400).send({error:'Scenario must be between -100 and 100.'});
@@ -191,17 +199,17 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
       : `SELECT c.ref, c.region, c.status, c.claimed_amount AS claimed, c.approved_amount AS approved FROM claims c
         JOIN exceptions e ON e.claim_ref = c.ref WHERE e.type = ? ORDER BY c.ref`;
     const type = metric === 'lateFiling' ? 'LateFiling' : metric === 'mismatch' ? 'Mismatch' : 'Late';
-    const rows = metric === 'status' ? db.prepare(sql).all() : db.prepare(sql).all(type);
+    const rows = metric === 'status' ? (await db.prepare(sql).all()) : (await db.prepare(sql).all(type));
     return request.user.role === 'ROS' || request.user.role === 'RVP' ? rows.filter(row => row.region === request.user.region) : rows;
   });
   app.get('/api/audit', { preHandler: validate(schemas.audit) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if(!['AUD','CFB'].includes(request.user.role))return reply.code(403).send({error:'Permission denied.'});
     const { page, pageSize } = request.validated;
-    const total = db.prepare('SELECT COUNT(*) AS count FROM audit_log').get().count;
-    const allRows = db.prepare('SELECT * FROM audit_log ORDER BY id').all();
-    const rows = db.prepare(`SELECT a.*, COALESCE(u.username, 'system') AS username FROM audit_log a
-      LEFT JOIN users u ON u.id = a.actor_id ORDER BY a.id DESC LIMIT ? OFFSET ?`).all(pageSize, (page - 1) * pageSize);
+    const total = (await db.prepare('SELECT COUNT(*) AS count FROM audit_log').get()).count;
+    const allRows = (await db.prepare('SELECT * FROM audit_log ORDER BY id').all());
+    const rows = (await db.prepare(`SELECT a.*, COALESCE(u.username, 'system') AS username FROM audit_log a
+      LEFT JOIN users u ON u.id = a.actor_id ORDER BY a.id DESC LIMIT ? OFFSET ?`).all(pageSize, (page - 1) * pageSize));
     return {
       chainOk: auditChain(allRows),
       page,
@@ -212,12 +220,12 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/events', { preHandler: validate(schemas.events) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
-    return db.prepare('SELECT e.*,d.starts_on,d.ends_on,d.circular_reference FROM calamity_events e LEFT JOIN event_details d ON d.event_id=e.id ORDER BY e.id').all().map(e=>{const d=snapshot(db,e.id,request.user);return {...e,totals:d.totals,signal:d.signal};});
+    return Promise.all((await db.prepare('SELECT e.*,d.starts_on,d.ends_on,d.circular_reference FROM calamity_events e LEFT JOIN event_details d ON d.event_id=e.id ORDER BY e.id').all()).map(async e=>{const d=(await snapshot(db,e.id,request.user));return {...e,totals:d.totals,signal:d.signal};}));
   });
   app.get('/api/reports', { preHandler: validate(schemas.reports) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
     if(request.user.role==='ADM')return reply.code(403).send({error:'Permission denied.'});
-    const data=snapshot(db,request.query.eventId||event(db)?.id,request.user);
+    const data=(await snapshot(db,request.query.eventId||(await event(db))?.id,request.user));
     if(!data)return reply.code(404).send({error:'Event not found.'});
     return data;
   });
@@ -234,6 +242,8 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  if((process.env.DB_DRIVER||'sqlite')==='sqlite')process.env.SEED_DEMO ??= '1';
   const app = await buildApp();
   await app.listen({ port: Number(process.env.PORT || 3000), host: process.env.HOST || '127.0.0.1' });
+  console.log(`PhilHealth Calamity Monitor (${app.db.driver}) running at http://localhost:${process.env.PORT || 3000}`);
 }

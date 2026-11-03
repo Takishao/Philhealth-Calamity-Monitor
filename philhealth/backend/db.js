@@ -1,6 +1,8 @@
+import { createPostgresDatabase } from './postgres.js';
+import { configureTransactions } from './database-transactions.js';
 import Database from 'better-sqlite3';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync, readFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { seedAuditDemo } from './demo.js';
 import argon2 from 'argon2';
@@ -12,6 +14,10 @@ const users = [
 ];
 
 export async function createDatabase(filename = join(process.cwd(), 'backend', 'data', 'calamity.db')) {
+  const driver = filename === ':memory:' ? 'sqlite' : (process.env.DB_DRIVER || 'sqlite');
+  if (driver === 'postgres') return configureTransactions(await createPostgresDatabase());
+  if (driver !== 'sqlite') throw new Error('DB_DRIVER must be sqlite or postgres.');
+  if(filename !== ':memory:') mkdirSync(dirname(filename),{recursive:true});
   const db = new Database(filename);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
@@ -25,7 +31,11 @@ export async function createDatabase(filename = join(process.cwd(), 'backend', '
   }
   await seed(db, filename === ':memory:' || process.env.SEED_DEMO === '1');
   if(filename === ':memory:' || process.env.SEED_DEMO === '1') seedAuditDemo(db);
-  return db;
+  db.driver = 'sqlite';
+  db.begin = () => db.exec('BEGIN IMMEDIATE');
+  db.commit = () => db.exec('COMMIT');
+  db.rollback = () => db.exec('ROLLBACK');
+  return configureTransactions(db);
 }
 
 async function seed(db, allowDemo) {

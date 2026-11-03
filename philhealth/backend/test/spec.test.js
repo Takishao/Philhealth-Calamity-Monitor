@@ -20,7 +20,7 @@ test('selected-event dashboard and all six report exports share totals and real 
  const dash=(await app.inject({url:'/api/dashboard?eventId=SAMPLE',headers:h})).json();assert.equal(dash.totals.committed,4000000000);assert.equal(dash.totals.paid,3200000000);assert.equal(dash.signal.level,'warning');
  const report=(await app.inject({url:'/api/reports?eventId=SAMPLE',headers:h})).json();assert.deepEqual(report.totals,dash.totals);
  for(let type=0;type<6;type++){for(const format of ['csv','xlsx','pdf']){const r=await app.inject({url:`/api/reports.${format}?eventId=SAMPLE&type=${type}`,headers:h});assert.equal(r.statusCode,200);if(format==='csv')assert.match(r.body,/4000000000/);if(format==='pdf')assert.equal(r.rawPayload.subarray(0,4).toString(),'%PDF');if(format==='xlsx'){const w=new ExcelJS.Workbook();await w.xlsx.load(r.rawPayload);assert.ok(w.worksheets[0].rowCount>4);}}}
- const data=snapshot(app.db,'SAMPLE',{role:'CFB'});const rec=reportRows(data,4).slice(1);assert.equal(rec.reduce((a,r)=>a+r[1],0),dash.totals.committed);assert.equal(rec.reduce((a,r)=>a+r[2],0),dash.totals.paid);
+ const data=(await snapshot(app.db,'SAMPLE',{role:'CFB'}));const rec=reportRows(data,4).slice(1);assert.equal(rec.reduce((a,r)=>a+r[1],0),dash.totals.committed);assert.equal(rec.reduce((a,r)=>a+r[2],0),dash.totals.paid);
 });
 test('entry validation rejects duplicate reference/composite, negative amounts, invalid dates and provider',async t=>{
  const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'ros_xi');
@@ -35,10 +35,10 @@ test('CSV preview writes nothing; reports row field error; atomic revalidated co
  const r=await post(app,h,'/api/claims/import',{csv});assert.equal(r.json().accepted.length,1);assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM claims WHERE ref='CSV-1'").get().n,0);assert.equal((await post(app,h,'/api/claims/import',{csv,commit:true})).json().committed,true);const bad=await post(app,h,'/api/claims/import',{csv,commit:true});assert.equal(bad.json().committed,false);assert.equal(bad.json().rejected[0].field,'ref');
 });
 test('partial payments remain visible and automatically match when full; reject overpayment',async t=>{
- const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'act');const ref='SAMPLE-UNPAID';const before=snapshot(app.db,'SAMPLE',{role:'CFB'}).totals;
- assert.equal((await post(app,h,`/api/claims/${ref}/payment`,{amount:100,paidAt:'2026-08-01'})).statusCode,200);assert.equal(snapshot(app.db,'SAMPLE',{role:'CFB'}).totals.unpaid,before.unpaid-100);
+ const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'act');const ref='SAMPLE-UNPAID';const before=(await snapshot(app.db,'SAMPLE',{role:'CFB'})).totals;
+ assert.equal((await post(app,h,`/api/claims/${ref}/payment`,{amount:100,paidAt:'2026-08-01'})).statusCode,200);assert.equal((await snapshot(app.db,'SAMPLE',{role:'CFB'})).totals.unpaid,before.unpaid-100);
  assert.equal((await post(app,h,`/api/claims/${ref}/payment`,{amount:800000000,paidAt:'2026-08-01'})).statusCode,422);
- assert.equal((await post(app,h,`/api/claims/${ref}/payment`,{amount:799999900,paidAt:'2026-08-01'})).statusCode,200);assert.equal(snapshot(app.db,'SAMPLE',{role:'CFB'}).totals.unpaid,0);
+ assert.equal((await post(app,h,`/api/claims/${ref}/payment`,{amount:799999900,paidAt:'2026-08-01'})).statusCode,200);assert.equal((await snapshot(app.db,'SAMPLE',{role:'CFB'})).totals.unpaid,0);
 });
 test('auditor is read-only; regional isolation covers dashboard and reports; audit immutable',async t=>{
  const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const aud=await login(app,'aud');assert.equal((await post(app,aud,'/api/claims',fixture)).statusCode,403);assert.equal((await post(app,aud,'/api/requests',{eventId:'SAMPLE'})).statusCode,403);assert.throws(()=>app.db.prepare("UPDATE audit_log SET reason='tampered'").run(),/immutable/);assert.throws(()=>app.db.prepare('DELETE FROM audit_log').run(),/immutable/);
@@ -50,12 +50,12 @@ test('Route A/B request decisions append history with independent approver and e
  const list=(await app.inject({url:'/api/requests?eventId=SAMPLE',headers:cfb})).json();assert.equal(list.length,2);assert.ok(list.every(r=>r.history.length===2));assert.throws(()=>app.db.prepare('DELETE FROM request_decisions').run(),/immutable/);assert.equal((await app.inject({url:'/api/audit',headers:cfb})).json().chainOk,true);
 });
 test('settings validate ordered numeric thresholds and immediately recalculate alert state',async t=>{
- const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'adm');const update=value=>app.inject({method:'PUT',url:'/api/settings/warning_pct',headers:h,payload:{value,reason:'Illustrative threshold test'}});assert.equal((await update('abc')).statusCode,422);assert.equal((await update('95')).statusCode,422);assert.equal((await update('40')).statusCode,200);assert.equal(snapshot(app.db,'DEMO-NORMAL',{role:'CFB'}).signal.level,'warning');
+ const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'adm');const update=value=>app.inject({method:'PUT',url:'/api/settings/warning_pct',headers:h,payload:{value,reason:'Illustrative threshold test'}});assert.equal((await update('abc')).statusCode,422);assert.equal((await update('95')).statusCode,422);assert.equal((await update('40')).statusCode,200);assert.equal((await snapshot(app.db,'DEMO-NORMAL',{role:'CFB'})).signal.level,'warning');
 });
 test('live weekly commitments drive moving-average forecast and projected breach date',async t=>{
  const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());
  app.db.prepare("UPDATE claims SET decision_date='2026-10-15' WHERE event_id='DEMO-NORMAL'").run();
- const d=snapshot(app.db,'DEMO-NORMAL',{role:'CFB'});assert.equal(d.forecast.weekly,2500000000/3);assert.ok(d.forecast.projected>d.totals.ceiling);assert.ok(d.forecast.breachDate);assert.equal(d.signal.level,'critical');
+ const d=(await snapshot(app.db,'DEMO-NORMAL',{role:'CFB'}));assert.equal(d.forecast.weekly,2500000000/3);assert.ok(d.forecast.projected>d.totals.ceiling);assert.ok(d.forecast.breachDate);assert.equal(d.signal.level,'critical');
 });
 test('CSV quoted multiline notes parse and malformed input is rejected',async t=>{
  const app=await buildApp({database:':memory:',serveFrontend:false});t.after(()=>app.close());const h=await login(app,'ros_xi');
