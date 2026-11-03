@@ -1,11 +1,25 @@
 # How to run
 
-Prerequisites: macOS/Linux, Node.js 22.9+ and npm.
+Prerequisites: Windows, macOS or Linux, Node.js 22.9+ and npm.
 
 ```sh
 cd '/Users/takishao/Downloads/Personal Workspace/Philhealth-Calamity-Monitor'
 ./start.sh
 ```
+
+## Windows starter
+
+Double-click `start.bat` in the project root. It checks Node/npm, installs locked dependencies when needed, and keeps the server output visible. It also reinstalls incompatible native modules when the folder was copied from macOS or Linux. Keep the window open while using the app. Press Control-C to stop it.
+
+For Aiven, include your private `philhealth/.env` and the supplied root `ca.pem` when moving the project to Windows. These files are intentionally absent from Git. In `philhealth/.env`, use the portable CA path below and keep your existing DATABASE_URL:
+
+```dotenv
+DB_DRIVER=postgres
+SEED_DEMO=0
+AIVEN_CA_CERT_PATH=../ca.pem
+```
+
+An internet connection is required for Aiven and for the initial dependency installation. No PostgreSQL server installation is needed on Windows. The starter uses the same npm start command as macOS, without migrating or seeding Aiven.
 
 Open http://localhost:3000. This working copy uses Aiven PostgreSQL through the untracked `philhealth/.env`. TLS verifies the supplied `ca.pem`. Startup never migrates or seeds PostgreSQL automatically.
 

@@ -166,3 +166,9 @@ Fixed static path/symlink containment and directory responses, independent trans
 The previous restore limitation is resolved for the application snapshot: work/backups/aiven-2026-11-03T15-35-12.482Z.dump was restored into a new temporary database. Clone login, PHCM-DEMO totals and application audit chain passed. The clone was removed and absence verified. No original service data was reset. All 107 original business row hashes across 16 native tables remain unchanged.
 
 Verification: 31 default tests pass with one live suite skipped; explicit Aiven tests pass 14. New regressions cover archive matching, streaming Excel, path/symlink denial, independent/nested transactions, failed BEGIN cleanup, forced verified TLS and backup checksum rejection. Clean-install lockfile checks pass. Runtime remains localhost testing only. Native legacy audit canonicalization and production concurrency/load remain outside the verified scope. Details and commands: philhealth/docs/risk-review-2026-11-03.md.
+
+### Windows starter (2026-11-04)
+
+Added root start.bat beside start.sh. It quotes the project path, checks Node 22.9+ and npm.cmd, installs locked dependencies if absent or if copied native modules cannot load, then calls npm start. Errors stay visible in the console. No migration or PostgreSQL seeding runs. README includes Windows setup, configuration and stopping instructions.
+
+The ignored philhealth/.env now references the same supplied CA using the portable ../ca.pem path. Verified a fresh connection to the existing Aiven defaultdb with TLS and rejectUnauthorized=true. The local server was stopped when checked and was left stopped. Version boundary cases (20.19, 22.8, 22.9, 24 and 26) and the native-module preflight passed on macOS. Actual Windows command execution is untested because no Windows runtime is available. No database rows changed.
