@@ -1,16 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import pg from 'pg';
-
-if (!process.env.DATABASE_URL || !process.env.AIVEN_CA_CERT_PATH) {
-  throw new Error('DATABASE_URL and AIVEN_CA_CERT_PATH are required.');
-}
-const connectionUrl = new URL(process.env.DATABASE_URL);
-connectionUrl.searchParams.delete('sslmode');
-const client = new pg.Client({
-  connectionString: connectionUrl.toString(),
-  ssl: { ca: readFileSync(process.env.AIVEN_CA_CERT_PATH, 'utf8'), rejectUnauthorized: true }
-});
+import {readFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {postgresClient} from './postgres.js';
+const client=postgresClient();
 const migration = readFileSync(join(process.cwd(), 'backend', 'postgres-migrations', '001_security_sessions.sql'), 'utf8')
   .replace(/^BEGIN;\s*/m, '').replace(/\s*COMMIT;\s*$/m, '');
 

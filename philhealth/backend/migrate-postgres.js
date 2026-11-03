@@ -6,6 +6,8 @@ if(apply){
  const index=process.argv.indexOf('--backup');
  const path=index<0?null:process.argv[index+1];
  if(!path||statSync(path).size<100||readFileSync(path).subarray(0,5).toString()!=='PGDMP')throw new Error('Provide a verified custom-format backup with --backup before applying.');
+ const manifest=JSON.parse(readFileSync(path+'.json','utf8'));
+ if(!manifest.archiveDecoded||manifest.sha256!==createHash('sha256').update(readFileSync(path)).digest('hex'))throw new Error('Verified backup manifest checksum mismatch. Create a new backup before applying.');
 }
 const client=postgresClient();await client.connect();
 try {

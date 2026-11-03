@@ -11,10 +11,10 @@ const tables = {
  request_amendments:'app_request_amendments', audit_log:'app_audit_log', legacy_audit_log:'app_legacy_audit_log', exceptions:'app_exceptions'
 };
 
-export function postgresClient() {
- if (!process.env.DATABASE_URL || !process.env.AIVEN_CA_CERT_PATH) throw new Error('DATABASE_URL and AIVEN_CA_CERT_PATH are required for verified TLS.');
- const url = new URL(process.env.DATABASE_URL);
- for (const key of ['sslmode','sslcert','sslkey','sslrootcert']) url.searchParams.delete(key);
+export function postgresClient(databaseUrl = process.env.DATABASE_URL) {
+ if (!databaseUrl || !process.env.AIVEN_CA_CERT_PATH) throw new Error('DATABASE_URL and AIVEN_CA_CERT_PATH are required for verified TLS.');
+ const url = new URL(databaseUrl);
+ for (const key of ['ssl','sslmode','sslcert','sslkey','sslrootcert']) url.searchParams.delete(key);
  return new pg.Client({connectionString:url.toString(),ssl:{ca:readFileSync(process.env.AIVEN_CA_CERT_PATH,'utf8'),rejectUnauthorized:true},
   types:{getTypeParser(oid,format){
    if ([20,1700].includes(oid)) return value => {const n=Number(value);if(!Number.isSafeInteger(n))throw new Error('Database amount or ID is not a safe integer.');return n;};

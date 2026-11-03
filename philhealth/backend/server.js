@@ -3,8 +3,8 @@ import { snapshot } from './finance.js';
 import { registerModuleRoutes } from './modules.js';
 import Fastify from 'fastify';
 import argon2 from 'argon2';
-import { readFileSync, existsSync } from 'node:fs';
-import { extname, join, normalize, resolve } from 'node:path';
+import { readFileSync, existsSync, realpathSync, statSync } from 'node:fs';
+import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { createDatabase } from './db.js';
@@ -17,7 +17,7 @@ import { registerEventRoutes } from './events.js';
 import { registerReportRoutes } from './reports.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
-const frontendDir = resolve(here, '../frontend');
+const frontendDir = realpathSync(resolve(here, '../frontend'));
 const staticTypes = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.png': 'image/png', '.html': 'text/html; charset=utf-8' };
 
 function mustBeSignedIn(request, reply) {
@@ -61,6 +61,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     return payload;
   });
+  app.addHook('onRequest', (request, reply, done) => db.inRequestContext(done));
   app.addHook('onRequest', async () => db.beginRequest());
   app.addHook('onRequest', attachAuth(db));
   app.addHook('onRequest', async request => { if(db.setActor) await db.setActor(request.user?.id); });
@@ -232,11 +233,13 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   if (serveFrontend) app.get('/*', async (request, reply) => {
     if (request.hostname === '127.0.0.1') return reply.redirect(`http://localhost:${request.headers.host.split(':')[1] || 3000}${request.raw.url}`);
     const relative = request.params['*'] || 'index.html';
-    const file = resolve(frontendDir, relative === '' ? 'index.html' : normalize(relative));
-    if (!file.startsWith(frontendDir) || !existsSync(file)) return reply.code(404).send({ error: 'Not found.' });
+    const file = resolve(frontendDir, relative === '' ? 'index.html' : relative);
+    if (!file.startsWith(frontendDir + sep) || !existsSync(file)) return reply.code(404).send({ error: 'Not found.' });
+    const canonical = realpathSync(file);
+    if (!canonical.startsWith(frontendDir + sep) || !statSync(canonical).isFile()) return reply.code(404).send({ error: 'Not found.' });
     reply.type(staticTypes[extname(file)] || 'application/octet-stream');
     reply.header('Cache-Control', 'no-cache');
-    return reply.send(readFileSync(file));
+    return reply.send(readFileSync(canonical));
   });
   return app;
 }
