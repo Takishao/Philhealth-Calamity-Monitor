@@ -146,6 +146,12 @@ Accessibility: color plus SVG icon plus visible status text. AA text contrast 4.
 
 ## Current status
 
+### Windows ECONNRESET recovery (2026-11-04)
+
+Owner screenshot showed PostgreSQL startup succeeded, followed by an unhandled pg Client error event (read ECONNRESET) that terminated Node and caused browser Failed to fetch. Added idle error listeners, TCP keepalive and a ten-second connection timeout. The runtime marks dropped connections unavailable, returns HTTP 503 for interrupted requests and reconnects only before the next transaction. Interrupted writes and commits are never replayed. A commit interrupted by a network reset can have an uncertain outcome, so users must check history before resubmitting payments. No certificate verification bypass. Exact network-reset cause and Windows execution remain unverified.
+
+Regression tests cover idle reset recovery and ensure interrupted writes/commits are never replayed. Default tests pass 33 checks with the live PostgreSQL suite skipped. Explicit Aiven integration passes all 14 tests, including unchanged native business rows.
+
 ### Windows starter (2026-11-04)
 
 Added root start.bat beside start.sh. It quotes the project path, checks Node 22.9+ and npm.cmd, installs locked dependencies if absent or if copied native modules cannot load, then calls npm start. Errors stay visible in the console. No migration or PostgreSQL seeding runs. README includes Windows setup, configuration and stopping instructions.

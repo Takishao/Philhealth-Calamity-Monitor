@@ -163,3 +163,9 @@ Owner confirmed Aiven money is pesos, role translation CENTRAL_FIN/REGIONAL_STAF
 Created a custom-format pg_dump backup at ignored work/backups/aiven-2026-11-03T14-51-23.610Z.dump using verify-full TLS and the supplied CA. File permissions are 0600. Size 77,218 bytes. SHA-256: 9367c1f52efc9246ec9662b4a42b35554687e0d82cfe7afcc5c3771d2133ee6f. pg_restore --list and full decoding to /dev/null both succeeded. This verifies archive readability, not restoration into a separate database. No remote data or schema changed.
 
 Remaining decisions are described in philhealth/docs/aiven-storage-proposal.md. No new app_ tables are approved or applied yet. Audit serialization compatibility is unresolved.
+
+### Windows ECONNRESET recovery (2026-11-04)
+
+Owner screenshot showed PostgreSQL startup succeeded, followed by an unhandled pg Client error event (read ECONNRESET) that terminated Node and caused browser Failed to fetch. Added idle error listeners, TCP keepalive and a ten-second connection timeout. The runtime marks dropped connections unavailable, returns HTTP 503 for interrupted requests and reconnects only before the next transaction. Interrupted writes and commits are never replayed. A commit interrupted by a network reset can have an uncertain outcome, so users must check history before resubmitting payments. No certificate verification bypass. Exact network-reset cause and Windows execution remain unverified.
+
+Regression tests cover idle reset recovery and ensure interrupted writes/commits are never replayed. Default tests pass 33 checks with the live PostgreSQL suite skipped. Explicit Aiven integration passes all 14 tests, including unchanged native business rows.

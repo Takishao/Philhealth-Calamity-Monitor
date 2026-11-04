@@ -70,3 +70,7 @@ The dashboard chart uses responsive SVG with amount/date axes and an actual/fore
 ## Dependency and risk review
 
 The 2026-11-03 review reports zero npm audit findings after a clean install. Backup restoration into a temporary database, static-file boundary checks, transaction isolation regressions and both database suites pass. See philhealth/docs/risk-review-2026-11-03.md for the tested dependency overrides, restore commands and remaining deployment limits.
+
+## Database connection reset on Windows
+
+If the terminal shows read ECONNRESET, the PostgreSQL network connection was reset. Older copies crash on that idle error. Copy the updated philhealth/backend/postgres.js and its dependency-free runtime fix from this branch, then restart start.bat. Keep your private .env and ca.pem. The updated server handles idle disconnects, returns a connection-interrupted message when needed and reconnects before the next transaction. It never retries an interrupted write or commit automatically. Check claim/payment history before resubmitting an interrupted financial action. Persistent resets need investigation of the Windows network, VPN/firewall and Aiven service.

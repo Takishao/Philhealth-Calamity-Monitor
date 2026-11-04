@@ -15,13 +15,16 @@ export function postgresClient(databaseUrl = process.env.DATABASE_URL) {
  if (!databaseUrl || !process.env.AIVEN_CA_CERT_PATH) throw new Error('DATABASE_URL and AIVEN_CA_CERT_PATH are required for verified TLS.');
  const url = new URL(databaseUrl);
  for (const key of ['ssl','sslmode','sslcert','sslkey','sslrootcert']) url.searchParams.delete(key);
- return new pg.Client({connectionString:url.toString(),ssl:{ca:readFileSync(process.env.AIVEN_CA_CERT_PATH,'utf8'),rejectUnauthorized:true},
+ const client = new pg.Client({keepAlive:true,keepAliveInitialDelayMillis:10000,connectionTimeoutMillis:10000,connectionString:url.toString(),ssl:{ca:readFileSync(process.env.AIVEN_CA_CERT_PATH,'utf8'),rejectUnauthorized:true},
   types:{getTypeParser(oid,format){
    if ([20,1700].includes(oid)) return value => {const n=Number(value);if(!Number.isSafeInteger(n))throw new Error('Database amount or ID is not a safe integer.');return n;};
    if (oid===1082) return value=>value;
    if ([1114,1184].includes(oid)) return value=>new Date(oid===1114?value+'Z':value).toISOString();
    return pg.types.getTypeParser(oid,format);
   }}});
+ // pg emits idle connection failures outside query promises.
+ client.on('error',()=>{});
+ return client;
 }
 
 // Queries are application-owned SQL, never user input. Tokenize strings so a
@@ -37,9 +40,19 @@ export function postgresSql(sql) {
   });
 }
 
-export async function createPostgresDatabase() {
- const client=postgresClient();
- await client.connect();
+export async function createPostgresDatabase(clientFactory = postgresClient) {
+ let client;
+ let disconnected=true;
+ const unavailable=()=>Object.assign(new Error('Database connection interrupted. Check the previous action before resubmitting it.'),{statusCode:503});
+ async function connect(){
+  const next=clientFactory();
+  next.on('error',()=>{if(client===next)disconnected=true;});
+  next.on('end',()=>{if(client===next)disconnected=true;});
+  client=next;
+  try{await next.connect();disconnected=false;}
+  catch{disconnected=true;await next.end().catch(()=>{});throw unavailable();}
+ }
+ await connect();
  try {
   const check=await client.query("SELECT to_regclass('public.app_runtime_claims') AS bridge");
   const ambiguous=await client.query('SELECT 1 FROM claims GROUP BY claim_ref HAVING count(*)>1 LIMIT 1');
@@ -48,7 +61,7 @@ export async function createPostgresDatabase() {
  } catch(error) {await client.end();throw error;}
  let pending=Promise.resolve();
  const query=(...args)=>{
-  const result=pending.then(()=>client.query(...args));
+  const result=pending.then(()=>{if(disconnected)throw unavailable();return client.query(...args).catch(error=>{if(disconnected||['ECONNRESET','ECONNREFUSED','EPIPE','ETIMEDOUT','57P01','57P02','57P03'].includes(error.code)||/connection.*(terminated|closed)/i.test(error.message)){disconnected=true;throw unavailable();}throw error;});});
   pending=result.catch(()=>{});
   return result;
  };
@@ -66,9 +79,9 @@ export async function createPostgresDatabase() {
    };
   },
   async setActor(id){await query("SELECT set_config('app.actor_id',$1,true)",[String(id||'')]);},
-  async begin(){await query('BEGIN');await query('SELECT pg_advisory_xact_lock(729104300)');},
+  async begin(){if(disconnected){await client.end().catch(()=>{});await connect();}await query('BEGIN');await query('SELECT pg_advisory_xact_lock(729104300)');},
   async commit(){await query('COMMIT');},
-  async rollback(){await query('ROLLBACK');},
+  async rollback(){if(!disconnected)await query('ROLLBACK');},
   async close(){await client.end();}
  };
  return db;
