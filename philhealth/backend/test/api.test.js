@@ -61,3 +61,27 @@ test('login locks a username and IP after five failed attempts in fifteen minute
   const locked = await app.inject({ method: 'POST', url: '/api/login', headers: { cookie, 'x-csrf-token': csrf.json().csrfToken }, payload: { username: 'cfb', password: 'demo1234' } });
   assert.equal(locked.statusCode, 429);
 });
+
+test('event dropdown metadata stays protected and avoids financial scans',async t=>{
+ const app=await appForTest();t.after(()=>app.close());
+ assert.equal((await app.inject('/api/events?summary=1')).statusCode,401);
+ const auth=await signIn(app);const prepare=app.db.prepare.bind(app.db);const statements=[];
+ app.db.prepare=sql=>{statements.push(sql);return prepare(sql);};
+ const result=await app.inject({url:'/api/events?summary=1',headers:{cookie:auth.cookie}});
+ assert.equal(result.statusCode,200);assert.ok(result.json().length>0);
+ assert.deepEqual(Object.keys(result.json()[0]).sort(),['id','name']);
+ assert.ok(!statements.some(sql=>/FROM (claims|payments|exceptions|settings)\b/i.test(sql)));
+ const full=await app.inject({url:'/api/events',headers:{cookie:auth.cookie}});
+ assert.ok(full.json().every(event=>event.totals&&event.signal));
+});
+
+test('public assets load without a database transaction while API remains protected',async t=>{
+ const app=await buildApp({database:':memory:'});t.after(()=>app.close());
+ const begin=app.db.beginRequest.bind(app.db);let calls=0;
+ app.db.beginRequest=async()=>{calls++;return begin();};
+ for(const url of ['/','/styles/style.css','/js/app.js','/assets/favicon.svg']) {
+  const result=await app.inject(url);assert.equal(result.statusCode,200,url);
+  assert.equal(calls,0);assert.ok(result.headers['content-security-policy']);
+ }
+ assert.equal((await app.inject('/api/dashboard')).statusCode,401);assert.equal(calls,1);
+});

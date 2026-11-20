@@ -61,15 +61,16 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     return payload;
   });
-  app.addHook('onRequest', (request, reply, done) => db.inRequestContext(done));
-  app.addHook('onRequest', async () => db.beginRequest());
-  app.addHook('onRequest', attachAuth(db));
-  app.addHook('onRequest', async request => { if(db.setActor) await db.setActor(request.user?.id); });
+  app.addHook('onRequest', (request, reply, done) => request.url.startsWith('/api/') ? db.inRequestContext(done) : done());
+  app.addHook('onRequest', async request => { if(request.url.startsWith('/api/')) await db.beginRequest(); });
+  const authenticate=attachAuth(db);
+  app.addHook('onRequest', async (request,reply) => { if(request.url.startsWith('/api/')) await authenticate(request,reply); });
+  app.addHook('onRequest', async request => { if(request.url.startsWith('/api/') && db.setActor) await db.setActor(request.user?.id); });
   app.addHook('onSend', async (request, reply, payload) => {
-    if (reply.statusCode === 403 && !request.databaseFailed) {
+    if (request.url.startsWith('/api/') && reply.statusCode === 403 && !request.databaseFailed) {
       await appendAudit(db, request.user?.id || null, 'DENIED', 'Request', `${request.method} ${request.url}`, 'Forbidden request');
     }
-    await db.endRequest(request.databaseFailed || reply.statusCode >= 500);
+    if(request.url.startsWith('/api/')) await db.endRequest(request.databaseFailed || reply.statusCode >= 500);
     return payload;
   });
   app.addHook('onClose', async () => db.close());
@@ -221,6 +222,7 @@ export async function buildApp({ database = join(here, 'data', 'calamity.db'), s
   });
   app.get('/api/events', { preHandler: validate(schemas.events) }, async (request, reply) => {
     if (!mustBeSignedIn(request, reply)) return;
+    if(request.query.summary==='1') return db.prepare('SELECT id,name FROM calamity_events ORDER BY id').all();
     return Promise.all((await db.prepare('SELECT e.*,d.starts_on,d.ends_on,d.circular_reference FROM calamity_events e LEFT JOIN event_details d ON d.event_id=e.id ORDER BY e.id').all()).map(async e=>{const d=(await snapshot(db,e.id,request.user));return {...e,totals:d.totals,signal:d.signal};}));
   });
   app.get('/api/reports', { preHandler: validate(schemas.reports) }, async (request, reply) => {

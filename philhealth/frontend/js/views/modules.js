@@ -3,7 +3,7 @@ import { scoped,eventId } from '../context.js';
 import { el,money,table,toast,field,badge,icon } from '../ui.js';
 const input=f=>f.querySelector('input,select,textarea');
 function form(title,fields,submit){const button=el('button',{type:'submit',class:'primary'},title);const error=el('p',{role:'alert'});const node=el('form',{class:'card form-grid'},el('h2',{},title),...fields,button,error);node.addEventListener('submit',async e=>{e.preventDefault();button.disabled=true;error.textContent='';try{await submit();}catch(e){error.textContent=e.message;}finally{button.disabled=false;}});return node;}
-export async function moduleView(route,user,reload){
+export async function moduleView(route,user,reload,eventRows){
  const section=el('section',{},el('h1',{},({events:'Events & budgets',requests:'Provider requests',analytics:'Forecast & optimization',exceptions:'Exception Center',audit:'Audit trail',reports:'Reports'})[route]||route));
  if(route==='reports'){
  const names=['Budget versus Actual Variance','Claims Status Summary','Claims Aging','Exceptions Register','Payment Reconciliation','Regional Summary'];
@@ -22,7 +22,7 @@ export async function moduleView(route,user,reload){
  const pct=field('Scenario spending change %','number','0');input(pct).min='-100';input(pct).max='100';const out=el('div',{class:'scenario-results'});async function draw(){const d=await scoped('/analytics?scenarioPct='+input(pct).value);out.replaceChildren(el('article',{class:'card'},el('p',{},d.method),el('p',{},`Weekly average ${money(d.weekly)} · Four-week forecast ${money(d.projected)} · Scenario ${money(d.scenarioTotal)}`),el('p',{},d.breachDate?'Projected breach '+d.breachDate:'No projected breach'),el('p',{},d.allocationMethod)),table(['Region','Suggested allocation'],d.allocation.map(r=>[r.region,money(r.suggestion)])));}section.append(form('Compare scenario',[pct],draw),out);await draw();return section;
  }
  if(route==='events'){
- const events=await api('/events');section.append(table(['Event','Name','Ceiling','Period','Circular','Condition'],events.map(e=>[e.id,e.name,money(e.budget),`${e.starts_on||'?'} to ${e.ends_on||'?'}`,e.circular_reference||'Missing',el('span',{class:'condition-cell'},badge(e.signal),el('span',{class:'condition-value'},e.totals.utilization.toFixed(1)+'%'))])));
+ const events=eventRows||await api('/events');section.append(table(['Event','Name','Ceiling','Period','Circular','Condition'],events.map(e=>[e.id,e.name,money(e.budget),`${e.starts_on||'?'} to ${e.ends_on||'?'}`,e.circular_reference||'Missing',el('span',{class:'condition-cell'},badge(e.signal),el('span',{class:'condition-value'},e.totals.utilization.toFixed(1)+'%'))])));
  const revisions=await api(`/events/${encodeURIComponent(eventId)}/revisions`);section.append(el('h2',{},'Allocation revision history'),table(['Revision ID','Region','Allocation','Status'],revisions.map(r=>[r.id,r.region,money(r.allocation),r.status])));
  if(user.role==='CFB'){
  const id=field('Event ID'),name=field('Event name'),budget=field('Ceiling in centavos','number'),start=field('Starts on','date'),end=field('Ends on','date'),circular=field('Circular reference'),alloc=el('label',{},'Regional allocations: one region and amount in centavos per line (example: XI,10000)',el('textarea',{required:'',rows:4},'XI,0'));
