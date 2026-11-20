@@ -1,5 +1,7 @@
 # How to run
 
+For step-by-step data entry, approvals and every account role, read [USER_WORKFLOW.md](USER_WORKFLOW.md).
+
 Prerequisites: Windows, macOS or Linux, Node.js 22.9+ and npm.
 
 ```sh
