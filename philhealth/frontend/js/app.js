@@ -33,7 +33,7 @@ async function render() {
     selector.value=eventId;
     const view = route === 'dashboard' ? await dashboardView() : route === 'claims' ? await claimsView() : route === 'settings' ? await settingsView(render) : await moduleView(route,user,render,route==='events'?events:undefined);
     if(version!==renderVersion)return;root.setAttribute('aria-busy','false');
-    root.replaceChildren(el('section', { class: 'shell' }, el('aside', { class: 'side' }, brand({link:true}), nav), el('main', { class: 'work',id:'main',tabindex:'-1' }, el('header', { class: 'top' }, selector,el('span',{class:'grow'}),theme,logout),el('p',{class:'banner'},'ILLUSTRATIVE DATA · Not real PhilHealth figures or patient data'), view)));
+    root.replaceChildren(el('section', { class: 'shell' }, el('aside', { class: 'side' }, brand({link:true}), nav), el('main', { class: 'work',id:'main',tabindex:'-1' }, el('header', { class: 'top' }, selector,el('span',{class:'grow'}),el('span',{class:'account-indicator'},el('span',{},'Signed in as '),el('strong',{},user.username)),theme,logout),el('p',{class:'banner'},'ILLUSTRATIVE DATA · Not real PhilHealth figures or patient data'), view)));
   } catch (error) { if(version!==renderVersion)return;root.setAttribute('aria-busy','false'); if(user && error.message!=='Authentication required.'){root.replaceChildren(el('section',{class:'shell'},el('h1',{},'Unable to load this view'),el('p',{role:'alert'},error.message),el('a',{href:'#dashboard'},'Return to dashboard')));return;} user = null; setCsrfToken(''); root.replaceChildren(loginView(next => { user = next; render(); })); if (error.message !== 'Authentication required.') toast(error.message, 'error'); }
 }
 
