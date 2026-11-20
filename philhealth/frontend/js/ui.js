@@ -46,7 +46,40 @@ export function icon(name,label){
  const use=document.createElementNS(svg.namespaceURI,'use');use.setAttribute('href','/assets/icons.svg#'+name);svg.append(use);return svg;
 }
 export const badge=s=>el('span',{class:'chip '+s.level},icon(s.icon),s.label);
-export function field(label,type='text',value=''){return el('label',{},label,el('input',{name:label,type,value,required:''}));}
+const fieldPlaceholders = {
+  'Event ID':'Example: TRAINING-2026-01',
+  'Event name':'Example: Training event illustrative',
+  'Ceiling in centavos':'Example: 1000000 = PHP10,000',
+  'Starts on':'Select the event start date',
+  'Ends on':'Select the event end date',
+  'Circular reference':'Example: Illustrative training circular',
+  'Region':'Example: XI',
+  'Revised allocation in centavos':'Example: 1000000',
+  'Provider name':'Example: Demo Hospital XI',
+  'Provider region':'Example: XI',
+  'Request ID':'Example: 1',
+  'New amount centavos':'Example: 15000000',
+  'Change reason':'Example: Updated illustrative allocation',
+  'Requested centavos':'Example: 15000000',
+  'Request note':'Example: Illustrative provider request for testing',
+  'Reason':'Example: Reviewed and approved for testing',
+  'Reference':'Example: TRAINING-XI-001',
+  'Token (PT-0000)':'Example: PT-20260001',
+  'Case type':'Example: Inpatient',
+  'Claimed centavos':'Example: 125000 = PHP1,250',
+  'Filing date':'Select a date inside the event period',
+  'Discharge date':'Select the service or discharge date',
+  'Approved centavos':'Example: 125000',
+  'Reason / note':'Example: Claim reviewed and approved',
+  'Reason code':'Example: VALIDATED',
+  'Ceiling override reason':'Only if approval exceeds the ceiling',
+  'Payment centavos':'Example: 100000',
+  'Payment date':'Select the payment date',
+  'Resolution reason':'Example: Reviewed and verified',
+  'Scenario spending change %':'Example: 10',
+  'Revision ID':'Example: 1'
+};
+export function field(label,type='text',value=''){return el('label',{},label,el('input',{name:label,type,value,placeholder:fieldPlaceholders[label]||`Enter ${label.toLowerCase()}`,required:''}));}
 
 // Align modal actions once, keeping submit controls within their original form.
 export function alignDialogActions(root) {
