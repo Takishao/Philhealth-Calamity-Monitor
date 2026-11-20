@@ -188,3 +188,5 @@ Loading fix: public static assets skip database hooks, authenticated event dropd
 ### User workflow and private publication (2026-11-20)
 
 Added USER_WORKFLOW.md with all nine demo roles, actual claim/request/budget approval rules, centavo examples, CSV validation, payment history, reports and current UI limits. README links the guide. GitHub publication excludes private environment files, CA files, live databases and backups. Repository collaboration does not assign application roles.
+
+Private publication completed (2026-11-20): https://github.com/Takishao/Philhealth-Calamity-Monitor is private with aiven-postgres as its default and only uploaded branch. No main push. Original origin remote is unchanged, publication remote is private. USER_WORKFLOW.md explains actual app roles and approval flows. Four requested collaborator invitations were sent with Write access after the owner explicitly approved that permission. Recipients must accept. No app roles were changed. Scanned 259 historical text blobs for common private-key/token/connection-string patterns with no non-placeholder findings. Private configuration, CA, databases and backups remain excluded.
