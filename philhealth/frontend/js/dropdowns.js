@@ -41,12 +41,21 @@ export function enhanceDropdowns(root = document) {
       scroll.style.maxHeight = `${height}px`;
     }
     function open() { panel.showPopover(); trigger.setAttribute('aria-expanded', 'true'); position(); scroll.children[select.selectedIndex]?.focus({ preventScroll: true }); }
+    // Keep wheel scrolling inside long menus. Some browsers route wheel events
+    // to the fixed popover/document instead of the scroll container.
+    scroll.addEventListener('wheel', event => {
+      if (scroll.scrollHeight <= scroll.clientHeight) return;
+      event.preventDefault();
+      scroll.scrollBy({ top: event.deltaY, left: event.deltaX, behavior: 'auto' });
+    }, { passive: false });
     trigger.addEventListener('click', () => panel.matches(':popover-open') ? panel.hidePopover() : open());
     trigger.addEventListener('keydown', event => { if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) { event.preventDefault(); open(); if (event.key === 'Home') scroll.firstElementChild?.focus(); if (event.key === 'End') scroll.lastElementChild?.focus(); } });
     panel.addEventListener('keydown', event => {
       const options = [...scroll.children].filter(option => !option.disabled), index = options.indexOf(document.activeElement);
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-        event.preventDefault(); const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) {
+        event.preventDefault();
+        const page = Math.max(1, Math.floor(scroll.clientHeight / 40));
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : event.key === 'PageDown' ? Math.min(options.length - 1, index + page) : event.key === 'PageUp' ? Math.max(0, index - page) : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
         options[next]?.focus();
       } else if (event.key === 'Escape') { event.preventDefault(); panel.hidePopover(); trigger.focus(); }
       else if (event.key === 'Tab') { panel.hidePopover(); trigger.focus(); }
